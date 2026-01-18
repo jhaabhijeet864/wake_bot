@@ -27,8 +27,9 @@ def print_banner():
     ║    Clap-Controlled System Automation  ║
     ╚═══════════════════════════════════════╝
     
-    Command:
-      • Clap   → Wake Screen + Lock Screen
+    Commands:
+      • Single Clap  → Wake Screen
+      • Double Clap  → Lock Screen
     
     Press Ctrl+C to exit
     """
@@ -50,7 +51,7 @@ def main():
     
     clap_detector = ClapDetector(
         threshold=config.threshold,
-        cooldown_ms=300  # 300ms cooldown to prevent rapid repeats
+        double_clap_window_ms=config.double_clap_window_ms
     )
     
     actions = WakeBotActions(
@@ -91,8 +92,11 @@ def main():
                 
                 # Execute actions
                 if action == "SINGLE":
-                    logger.clap_detected("Clap", rms)
+                    logger.clap_detected("Single Clap", rms)
                     actions.wake_screen()
+                elif action == "DOUBLE":
+                    logger.clap_detected("Double Clap", rms)
+                    actions.lock_screen()
                 
                 # Reset error counter on success
                 consecutive_errors = 0

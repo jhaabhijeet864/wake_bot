@@ -7,6 +7,7 @@ import pyautogui
 import webbrowser
 import platform
 import subprocess
+import ctypes
 from src.logger import WakeBotLogger
 
 
@@ -31,25 +32,20 @@ class WakeBotActions:
         self.system = platform.system()
     
     def wake_screen(self):
-        """Single clap action - wake display and optionally open lock screen"""
+        """Single clap action - wake display (shows lock screen if locked)"""
         try:
-            # First, wake the screen with a keypress
+            # Wake the screen with a keypress - this will show lock screen if PC is locked
             pyautogui.press(self.wake_key)
             self.logger.action("Wake Screen")
-            
-            # Then open the lock screen if enabled
-            if self.open_lock_screen:
-                self._open_lock_screen()
-                
         except Exception as e:
             self.logger.error(f"Failed to wake screen: {e}")
     
-    def _open_lock_screen(self):
-        """Open the system lock screen based on OS"""
+    def lock_screen(self):
+        """Double clap action - lock the screen"""
         try:
             if self.system == "Windows":
-                # Windows: Use Win+L hotkey to lock screen
-                pyautogui.hotkey('win', 'l')
+                # Windows: Use LockWorkStation API
+                ctypes.windll.user32.LockWorkStation()
                 self.logger.action("Lock Screen (Windows)")
                 
             elif self.system == "Linux":
@@ -77,7 +73,7 @@ class WakeBotActions:
                     ], check=True, capture_output=True)
                     self.logger.action("Lock Screen (Linux: dbus)")
                 except (subprocess.CalledProcessError, FileNotFoundError):
-                    self.logger.error("Could not lock screen on Linux - no supported lock command found")
+                    self.logger.error("Could not lock screen on Linux")
                     
             elif self.system == "Darwin":
                 # macOS: Use CGSession to lock
@@ -91,5 +87,4 @@ class WakeBotActions:
                 self.logger.error(f"Unsupported operating system: {self.system}")
                 
         except Exception as e:
-            self.logger.error(f"Failed to open lock screen: {e}")
-    
+            self.logger.error(f"Failed to lock screen: {e}")
