@@ -28,7 +28,7 @@ def print_banner():
     ╚═══════════════════════════════════════╝
     
     Command:
-      • Clap   → Wake Screen
+      • Clap   → Wake Screen + Lock Screen
     
     Press Ctrl+C to exit
     """
@@ -55,7 +55,8 @@ def main():
     
     actions = WakeBotActions(
         youtube_url=config.youtube_url,
-        wake_key=config.wake_key
+        wake_key=config.wake_key,
+        open_lock_screen=config.open_lock_screen
     )
     
     # Print startup banner

@@ -26,6 +26,7 @@ class WakeBotConfig:
     # Action Settings
     youtube_url: str = "https://www.youtube.com"
     wake_key: str = "shift"
+    open_lock_screen: bool = True  # Open lock screen when waking
     
     # Operational Settings
     start_active: bool = True
