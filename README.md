@@ -4,6 +4,7 @@ A Python-based background service that listens for clap patterns through your la
 
 ## Features
 
+- **Voice Command**: Wake the screen by saying "Wake up daddy's home" (Uses Vosk offline recognition)
 - **Single Clap**: Wake the screen (simulates keypress)
 - **Double Clap**: Open YouTube in your default browser
 - **Triple Clap**: Toggle the bot on/off (safe mode)
@@ -49,6 +50,17 @@ A Python-based background service that listens for clap patterns through your la
    ```bash
    source wakebot_env/bin/activate
    ```
+
+## Voice Command Setup (Vosk)
+
+WakeBot uses **Vosk** for offline voice recognition. This requires a model to be present in the `model/` directory.
+
+1. **Download a model** from [Vosk Models](https://alphacephei.com/vosk/models).
+   - For English, `vosk-model-small-en-us-0.15` is recommended (~40MB).
+2. **Extract the model** into the project root in a folder named `model`.
+   - The directory structure should look like: `Wake_Bot/model/am/...`, `Wake_Bot/model/graph/...`, etc.
+3. **Configure the phrase** in `src/config.py` or your `wakebot_config.json`.
+   - Default phrase: "wake up daddy's home"
 
 ## Quick Start
 

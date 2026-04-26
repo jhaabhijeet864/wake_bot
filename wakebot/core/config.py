@@ -1,12 +1,12 @@
 """
 WakeBot Configuration Module
-Centralized configuration with JSON file support
+Unified configuration management for all WakeBot components.
 """
 
 import json
 import os
 from dataclasses import dataclass, asdict
-from typing import Optional
+from typing import Optional, List, Tuple
 
 
 @dataclass
@@ -17,20 +17,31 @@ class WakeBotConfig:
     sample_rate: int = 44100
     channels: int = 1
     
-    # Detection Settings
-    threshold: int = 3000  # Calibrate this!
+    # Detection Settings (Clap)
+    clap_enabled: bool = True
+    threshold: int = 3000
     cooldown_ms: int = 100
     double_clap_window_ms: int = 500
     triple_clap_window_ms: int = 700
     
+    # Voice Settings
+    voice_enabled: bool = True
+    wake_phrases: List[str] = ("wake up", "daddy's home", "wake up daddy's home")
+    voice_confidence: float = 0.5
+    model_path: str = "model"
+    
+    # Vision Settings
+    vision_enabled: bool = False
+    camera_index: int = 0
+    
     # Action Settings
     youtube_url: str = "https://www.youtube.com"
     wake_key: str = "shift"
-    open_lock_screen: bool = True  # Open lock screen when waking
+    open_lock_screen: bool = True
     
     # Operational Settings
     start_active: bool = True
-    log_rms_values: bool = False  # Enable for debugging
+    log_rms_values: bool = False
     
     def to_dict(self) -> dict:
         """Convert config to dictionary"""
@@ -39,25 +50,27 @@ class WakeBotConfig:
     @classmethod
     def from_dict(cls, data: dict) -> 'WakeBotConfig':
         """Create config from dictionary"""
-        return cls(**data)
+        # Handle tuple/list conversion if necessary
+        if "wake_phrases" in data and isinstance(data["wake_phrases"], list):
+            data["wake_phrases"] = tuple(data["wake_phrases"])
+        
+        # Filter for only valid dataclass fields
+        valid_keys = {f.name for f in cls.__dataclass_fields__.values()}
+        filtered_data = {k: v for k, v in data.items() if k in valid_keys}
+        
+        return cls(**filtered_data)
 
 
 def load_config(config_path: str = "wakebot_config.json") -> WakeBotConfig:
     """
-    Load configuration from JSON file or return defaults
-    
-    Args:
-        config_path: Path to configuration JSON file
-        
-    Returns:
-        WakeBotConfig instance
+    Load configuration from JSON file or return defaults.
     """
     if os.path.exists(config_path):
         try:
             with open(config_path, 'r') as f:
                 data = json.load(f)
                 return WakeBotConfig.from_dict(data)
-        except (json.JSONDecodeError, KeyError) as e:
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
             print(f"Warning: Could not load config from {config_path}: {e}")
             print("Using default configuration.")
             return WakeBotConfig()
@@ -70,11 +83,7 @@ def load_config(config_path: str = "wakebot_config.json") -> WakeBotConfig:
 
 def save_config(config: WakeBotConfig, config_path: str = "wakebot_config.json"):
     """
-    Save configuration to JSON file
-    
-    Args:
-        config: WakeBotConfig instance
-        config_path: Path to save configuration
+    Save configuration to JSON file.
     """
     try:
         with open(config_path, 'w') as f:

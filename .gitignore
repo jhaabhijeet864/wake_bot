@@ -26,3 +26,7 @@ nul
 
 # Logs
 *.log
+
+# Models
+model/
+vosk_model/
