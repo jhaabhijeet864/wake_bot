@@ -22,7 +22,6 @@ class ClapDetector(BaseDetector):
         self.threshold = threshold
         self.double_clap_window = double_clap_window_ms / 1000.0
         self.min_clap_gap = 0.1
-        self.action_cooldown = 1.5
         
         self.last_clap_time: Optional[float] = None
         self.last_action_time: float = 0
@@ -32,9 +31,6 @@ class ClapDetector(BaseDetector):
     def process(self, rms: float) -> Optional[str]:
         """Process RMS value and detect single or double clap"""
         current_time = time.time()
-        
-        if (current_time - self.last_action_time) < self.action_cooldown:
-            return None
         
         if self.pending_single and self.last_clap_time is not None:
             if (current_time - self.last_clap_time) > self.double_clap_window:

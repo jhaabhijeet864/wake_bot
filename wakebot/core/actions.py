@@ -39,8 +39,6 @@ class WakeBotActions:
     def __init__(self, logger=None):
         self.logger = logger
         self.system = platform.system()
-        self.last_execution_time = 0
-        self.global_cooldown = 10.0  # Seconds between any two master sequences
         self.song_url = "https://open.spotify.com/track/2iEGj7kAwH7HAa5epwYwLB?si=9d4ab6ee60ab46c1"
 
     def wake_system(self):
@@ -48,12 +46,6 @@ class WakeBotActions:
         STAGE 1: Wake & Unlock Routine
         Jiggles mouse, waits for Victus display, and drops lock screen.
         """
-        current_time = time.time()
-        if current_time - self.last_execution_time < 60:
-            if self.logger:
-                self.logger.info("Wake routine skipped: Cooldown active (60s)")
-            return False
-
         if self.system != "Windows":
             return False
 
@@ -69,7 +61,6 @@ class WakeBotActions:
             time.sleep(0.05)
             ctypes.windll.user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
             
-            self.last_execution_time = current_time
             if self.logger:
                 self.logger.action("System Wake & Unlock triggered")
             return True
@@ -133,17 +124,8 @@ class WakeBotActions:
         Master Function: Sequential environment setup.
         Order: Wake -> Workspace (VS Code) -> Spotify
         """
-        current_time = time.time()
-        if current_time - self.last_execution_time < self.global_cooldown:
-            if self.logger:
-                self.logger.info("Welcome Home skipped: Global cooldown active")
-            return
-
         if self.logger:
             self.logger.action("WELCOME HOME SEQUENCE STARTED")
-        
-        # Update last execution time before starting to block subsequent triggers
-        self.last_execution_time = current_time
         
         self.wake_system()         # 1. Wake
         self.launch_or_maximize()  # 2. Workspace
@@ -153,16 +135,8 @@ class WakeBotActions:
         """
         Sleep Command: Pauses music and turns monitor off.
         """
-        current_time = time.time()
-        if current_time - self.last_execution_time < self.global_cooldown:
-            if self.logger:
-                self.logger.info("Goodnight skipped: Global cooldown active")
-            return
-
         if self.logger:
             self.logger.action("GOODNIGHT SEQUENCE TRIGGERED")
-        
-        self.last_execution_time = current_time
         
         try:
             # Pause Music
