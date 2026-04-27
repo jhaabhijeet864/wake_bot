@@ -113,7 +113,7 @@ class WakeBotActions:
     def play_startup_theme(self):
         """
         STAGE 3: Music Sequence (Force-Play)
-        Launches Spotify URL and forces playback after 4s UI handshake.
+        Launches Spotify URL. Auto-play is handled by the OS/App handshake.
         """
         try:
             if self.logger:
@@ -122,16 +122,8 @@ class WakeBotActions:
             # Start Spotify track - Most versions auto-play on URL open
             os.startfile(self.song_url)
             
-            # 4.0s delay to allow Spotify UI to load track data
-            time.sleep(4.0)
-
-            # Send VK_MEDIA_PLAY_PAUSE signal to FORCE playback
-            ctypes.windll.user32.keybd_event(VK_MEDIA_PLAY_PAUSE, 0, 0, 0)
-            time.sleep(0.05)
-            ctypes.windll.user32.keybd_event(VK_MEDIA_PLAY_PAUSE, 0, KEYEVENTF_KEYUP, 0)
-            
             if self.logger:
-                self.logger.action("Music force-start sequence complete.")
+                self.logger.action("Music sequence initiated via URL.")
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Music sequence failed: {e}")

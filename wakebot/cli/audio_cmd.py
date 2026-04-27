@@ -128,12 +128,15 @@ def run_audio():
             if wake_event.is_set():
                 logger.action("INITIATING: Welcome Home Sequence")
                 actions.welcome_home()
+                # Clear BOTH events to ignore any false triggers caused by the music/noise during startup
                 wake_event.clear()
+                sleep_event.clear()
             
             # Check for Sleep (Goodnight)
             if sleep_event.is_set():
                 logger.action("INITIATING: Goodnight Sequence")
                 actions.goodnight()
+                wake_event.clear()
                 sleep_event.clear()
                 
             time.sleep(0.1)
