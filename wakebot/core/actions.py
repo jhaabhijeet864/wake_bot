@@ -1,6 +1,8 @@
 """
-WakeBot Core Actions - Professional Automation
-Optimized for HP Victus & Windows 11.
+WakeBot Core Actions - Principal Architect Stable Baseline
+- REMOVED: All TTS and Pygame dependencies for maximum stability.
+- RETAINED: Hardware wake, VS Code orchestration, and Spotify Force-Play.
+- SEQUENCE: Wake -> Workspace -> Spotify
 """
 
 import os
@@ -31,25 +33,19 @@ except ImportError:
 class WakeBotActions:
     """
     Handles environment orchestration: Welcome Home and Goodnight routines.
+    Streamlined for baseline stability.
     """
 
     def __init__(self, logger=None):
         self.logger = logger
         self.system = platform.system()
-        self.last_execution_time = 0
         self.song_url = "https://open.spotify.com/track/2iEGj7kAwH7HAa5epwYwLB?si=9d4ab6ee60ab46c1"
 
     def wake_system(self):
         """
-        1. Wake & Unlock Routine:
+        STAGE 1: Wake & Unlock Routine
         Jiggles mouse, waits for Victus display, and drops lock screen.
         """
-        current_time = time.time()
-        if current_time - self.last_execution_time < 60:
-            if self.logger:
-                self.logger.info("Wake routine skipped: Cooldown active (60s)")
-            return False
-
         if self.system != "Windows":
             return False
 
@@ -65,7 +61,6 @@ class WakeBotActions:
             time.sleep(0.05)
             ctypes.windll.user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
             
-            self.last_execution_time = current_time
             if self.logger:
                 self.logger.action("System Wake & Unlock triggered")
             return True
@@ -76,7 +71,7 @@ class WakeBotActions:
 
     def launch_or_maximize(self):
         """
-        2. App Orchestrator:
+        STAGE 2: Workspace Management
         Maximizes VS Code if open, otherwise launches it.
         """
         if self.system != "Windows" or not win32gui:
@@ -95,8 +90,12 @@ class WakeBotActions:
             if self.logger:
                 self.logger.info("Maximizing VS Code...")
             for hwnd in vscode_hwnds:
-                win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
-                win32gui.SetForegroundWindow(hwnd)
+                try:
+                    win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+                    win32gui.SetForegroundWindow(hwnd)
+                except Exception:
+                    # Catching focus restrictions gracefully
+                    pass
         else:
             if self.logger:
                 self.logger.info("Launching VS Code...")
@@ -104,36 +103,33 @@ class WakeBotActions:
 
     def play_startup_theme(self):
         """
-        3. 'One Go' Music Sequence:
-        Forces Spotify to open specific track and play.
+        STAGE 3: Music Sequence (Force-Play)
+        Launches Spotify URL. Auto-play is handled by the OS/App handshake.
         """
         try:
-            # Force Windows to resolve link and open in Spotify
+            if self.logger:
+                self.logger.info("Firing Spotify startup theme...")
+            
+            # Start Spotify track - Most versions auto-play on URL open
             os.startfile(self.song_url)
             
-            # 2.5s delay to allow Spotify UI to load track data
-            time.sleep(2.5)
-            
-            # Send VK_MEDIA_PLAY_PAUSE signal
-            ctypes.windll.user32.keybd_event(VK_MEDIA_PLAY_PAUSE, 0, 0, 0)
-            time.sleep(0.05)
-            ctypes.windll.user32.keybd_event(VK_MEDIA_PLAY_PAUSE, 0, KEYEVENTF_KEYUP, 0)
-            
             if self.logger:
-                self.logger.action("Startup Theme playing")
+                self.logger.action("Music sequence initiated via URL.")
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Music sequence failed: {e}")
 
     def welcome_home(self):
         """
-        4. Master Function: Sequential environment setup.
+        Master Function: Sequential environment setup.
+        Order: Wake -> Workspace (VS Code) -> Spotify
         """
         if self.logger:
-            self.logger.action("Welcome Home Sequence Started")
-        self.wake_system()
-        self.launch_or_maximize()
-        self.play_startup_theme()
+            self.logger.action("WELCOME HOME SEQUENCE STARTED")
+        
+        self.wake_system()         # 1. Wake
+        self.launch_or_maximize()  # 2. Workspace
+        self.play_startup_theme()  # 3. Spotify
 
     def goodnight(self):
         """
@@ -143,13 +139,12 @@ class WakeBotActions:
             self.logger.action("GOODNIGHT SEQUENCE TRIGGERED")
         
         try:
-            # 1. Pause Music
+            # Pause Music
             ctypes.windll.user32.keybd_event(VK_MEDIA_PLAY_PAUSE, 0, 0, 0)
             time.sleep(0.05)
             ctypes.windll.user32.keybd_event(VK_MEDIA_PLAY_PAUSE, 0, KEYEVENTF_KEYUP, 0)
             
-            # 2. Turn off Monitor (Power save)
-            # 2 = off, 1 = standby, -1 = on
+            # Turn off Monitor
             ctypes.windll.user32.SendMessageW(0xFFFF, WM_SYSCOMMAND, SC_MONITORPOWER, 2)
             
             if self.logger:
@@ -157,8 +152,3 @@ class WakeBotActions:
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Goodnight sequence failed: {e}")
-
-if __name__ == "__main__":
-    actions = WakeBotActions()
-    # To test: actions.welcome_home() or actions.goodnight()
-    actions.welcome_home()

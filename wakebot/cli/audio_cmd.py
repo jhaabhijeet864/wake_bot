@@ -1,6 +1,7 @@
 """
-WakeBot Audio Command
-Threaded implementation of audio triggers (Claps & Voice).
+WakeBot Audio Command - Principal Architect Version
+Threaded implementation of audio triggers (Claps & Voice) 
+integrated with the "One Go" professional automation suite.
 """
 
 import time
@@ -19,8 +20,9 @@ def run_audio():
     config = load_config()
     logger = WakeBotLogger()
     
-    # Shared Synchronization Event
+    # Synchronization Events
     wake_event = threading.Event()
+    sleep_event = threading.Event()
     
     # Initialize components
     audio_engine = AudioStream(
@@ -53,12 +55,12 @@ def run_audio():
     # Audio buffer for processing thread
     audio_queue = queue.Queue(maxsize=20)
     
-    # 2. Start threads (Daemon)
+    # 2. Thread Definitions
     
     def audio_producer():
         """Producer thread: captures microphone stream and feeds the queue"""
         if not audio_engine.start_stream():
-            logger.error("Audio stream failed to start.")
+            logger.error("Audio stream failed to start. Check microphone permissions.")
             return
 
         while True:
@@ -67,6 +69,7 @@ def run_audio():
                 if not audio_queue.full():
                     audio_queue.put_nowait(chunk)
             except Exception as e:
+                # Robustness: Auto-restart stream on hardware disconnect
                 audio_engine.restart_stream()
                 time.sleep(1)
 
@@ -84,9 +87,9 @@ def run_audio():
                     if clap_action == "SINGLE":
                         wake_event.set()
                     elif clap_action == "DOUBLE":
-                        actions.lock_screen()
+                        sleep_event.set() # Trigger the 'Goodnight' sequence
                 
-                # Process Voice
+                # Process Voice (Feed the model)
                 if voice_detector:
                     voice_detector.add_audio(chunk)
                 
@@ -98,7 +101,7 @@ def run_audio():
         """Watcher thread: monitors voice detector for keyword matches"""
         while True:
             if voice_detector and voice_detector.check_and_reset():
-                logger.info("Voice match detected!")
+                logger.info("Voice match detected: Triggering Welcome Home sequence.")
                 wake_event.set()
             time.sleep(0.1)
 
@@ -116,21 +119,32 @@ def run_audio():
     for t in threads:
         t.start()
 
-    logger.info("WakeBot Audio system is active.")
+    logger.info("WakeBot Audio system is active. Listening for triggers...")
 
-    # 3. Event loop
+    # 3. Master Orchestration Loop
     try:
         while True:
-            if wake_event.wait(timeout=1.0):
-                logger.info("Action Triggered!")
-                actions.wake_system()
-                # actions.launch_workspace(["code", "chrome"]) # Uncomment to auto-launch apps
+            # Check for Wake (Welcome Home)
+            if wake_event.is_set():
+                logger.action("INITIATING: Welcome Home Sequence")
+                actions.welcome_home()
+                # Clear BOTH events to ignore any false triggers caused by the music/noise during startup
                 wake_event.clear()
-            time.sleep(0.01)
+                sleep_event.clear()
+            
+            # Check for Sleep (Goodnight)
+            if sleep_event.is_set():
+                logger.action("INITIATING: Goodnight Sequence")
+                actions.goodnight()
+                wake_event.clear()
+                sleep_event.clear()
+                
+            time.sleep(0.1)
 
     except KeyboardInterrupt:
-        logger.info("Stopping...")
+        logger.info("System shutdown requested by user.")
     finally:
         if voice_detector:
             voice_detector.stop()
         audio_engine.stop_stream()
+        logger.info("Audio stream closed. Cleanup complete.")

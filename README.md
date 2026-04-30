@@ -1,292 +1,358 @@
-# WakeBot - Clap-Controlled System Automation
-
-A Python-based background service that listens for clap patterns through your laptop microphone and performs system automation actions.
-
-## Features
-
-- **Voice Command**: Wake the screen by saying "Wake up daddy's home" (Uses Vosk offline recognition)
-- **Single Clap**: Wake the screen (simulates keypress)
-- **Double Clap**: Open YouTube in your default browser
-- **Triple Clap**: Toggle the bot on/off (safe mode)
-- **Robust Error Recovery**: Automatically handles microphone disconnections and stream errors
-- **Calibration Tool**: Built-in calibration for optimal threshold detection
-- **Configurable**: JSON-based configuration file
-- **Cross-Platform**: Works on Windows, macOS, and Linux
-
-## Installation
-
-### Windows
-
-1. **Install Python** (3.8 or higher) from [python.org](https://www.python.org/downloads/)
-
-2. **Run the setup script**:
-   ```batch
-   setup.bat
-   ```
-
-3. **Activate the virtual environment**:
-   ```batch
-   wakebot_env\Scripts\activate
-   ```
-
-### macOS / Linux
-
-1. **Install system dependencies**:
-   ```bash
-   # macOS (requires Homebrew)
-   brew install portaudio
-   
-   # Linux (Debian/Ubuntu)
-   sudo apt-get install -y libasound-dev portaudio19-dev
-   ```
-
-2. **Run the setup script**:
-   ```bash
-   chmod +x setup.sh
-   ./setup.sh
-   ```
-
-3. **Activate the virtual environment**:
-   ```bash
-   source wakebot_env/bin/activate
-   ```
-
-## Voice Command Setup (Vosk)
-
-WakeBot uses **Vosk** for offline voice recognition. This requires a model to be present in the `model/` directory.
-
-1. **Download a model** from [Vosk Models](https://alphacephei.com/vosk/models).
-   - For English, `vosk-model-small-en-us-0.15` is recommended (~40MB).
-2. **Extract the model** into the project root in a folder named `model`.
-   - The directory structure should look like: `Wake_Bot/model/am/...`, `Wake_Bot/model/graph/...`, etc.
-3. **Configure the phrase** in `src/config.py` or your `wakebot_config.json`.
-   - Default phrase: "wake up daddy's home"
-
-## Quick Start
-
-### 1. Calibration (Required)
-
-**Important**: You must run calibration first to set the correct threshold for your environment.
-
-```bash
-python calibrate.py
-```
-
-**Calibration Instructions**:
-1. Run the script
-2. Sit quietly for 5 seconds (observe ambient RMS values)
-3. Clap loudly 5 times with 2-second gaps
-4. Press `Ctrl+C` to stop
-5. Note the recommended threshold value
-6. Update `wakebot_config.json` with the recommended threshold
-
-### 2. Run WakeBot
-
-**With terminal output** (recommended for first run):
-```bash
-python main.py
-```
-
-**Background mode** (Windows, no console window):
-```bash
-pythonw wakebot.pyw
-```
-
-## Configuration
-
-Configuration is stored in `wakebot_config.json` (auto-generated on first run).
-
-### Configuration Options
-
-```json
-{
-    "chunk_size": 1024,              // Audio buffer size
-    "sample_rate": 44100,            // Audio sample rate
-    "channels": 1,                   // Mono audio
-    "threshold": 3000,               // RMS threshold for clap detection (CALIBRATE THIS!)
-    "cooldown_ms": 100,              // Echo rejection period after clap
-    "double_clap_window_ms": 500,    // Max time between claps for double clap
-    "triple_clap_window_ms": 700,    // Max time between claps for triple clap
-    "youtube_url": "https://www.youtube.com",
-    "wake_key": "shift",             // Key to press for wake action
-    "start_active": true,            // Initial active state
-    "log_rms_values": false          // Enable RMS debugging output
-}
-```
-
-### Updating Configuration
-
-1. Edit `wakebot_config.json` directly, or
-2. Modify the defaults in `src/config.py` and restart WakeBot
-
-## Usage
-
-### Commands
-
-- **Single Clap**: Wakes the screen by simulating a `Shift` keypress
-- **Double Clap**: Opens YouTube (or configured URL) in your default browser
-- **Triple Clap**: Toggles the bot between active and paused states
-
-### Status Indicators
-
-The terminal will show colored status messages:
-- **CYAN**: Informational messages
-- **GREEN**: Clap detection and active status
-- **YELLOW**: Action execution
-- **RED**: Errors and paused status
-
-Example output:
-```
-[12:34:56] INFO: Microphone initialized successfully
-[12:34:56] STATUS: WakeBot is ACTIVE
-[12:35:01] CLAP: Single (RMS: 4520)
-[12:35:01] ACTION: Wake Screen
-```
-
-## Troubleshooting
-
-### Microphone Not Detected
-
-**Problem**: WakeBot cannot access the microphone.
-
-**Solutions**:
-- **Windows**: Check Privacy Settings → Microphone → Allow apps to access microphone
-- **macOS**: System Preferences → Security & Privacy → Microphone → Enable Python
-- **Linux**: Check microphone permissions and ALSA configuration
-- Ensure no other application is exclusively using the microphone
-
-### Claps Not Registering
-
-**Problem**: Claps are not being detected.
-
-**Solutions**:
-1. Run `calibrate.py` again and ensure you're clapping loudly
-2. Lower the `threshold` value in `wakebot_config.json` (try 70-80% of current value)
-3. Check microphone volume/levels in system settings
-4. Ensure you're in a quiet environment during testing
-5. Try clapping closer to the microphone
-
-### False Positives
-
-**Problem**: WakeBot triggers on background noise or unintended sounds.
-
-**Solutions**:
-1. Run `calibrate.py` to recalculate threshold
-2. Increase the `threshold` value in `wakebot_config.json`
-3. Reduce background noise in your environment
-4. Ensure microphone is not too sensitive in system settings
-
-### Bot Doesn't Wake Screen
-
-**Problem**: Single clap doesn't wake the display.
-
-**Solutions**:
-- Check power settings: Ensure display can wake from sleep (not deep sleep)
-- Verify `wake_key` in configuration (try "shift", "ctrl", or "space")
-- Ensure WakeBot is running and active (check for "ACTIVE" status)
-- Test with double/triple clap to verify bot is functioning
-
-### Stream Errors / Auto-Restart
-
-**Problem**: See "Stream read error" or "Failed to restart stream" messages.
-
-**Solutions**:
-- This is normal when headphones are plugged/unplugged
-- WakeBot will automatically attempt to restart the stream
-- If errors persist, restart WakeBot manually
-- Check that microphone device is not being used by another application
-
-### Background Mode Not Working
-
-**Problem**: `wakebot.pyw` doesn't run silently on Windows.
-
-**Solutions**:
-- Use `pythonw` (not `python`) to run `.pyw` files
-- Create a shortcut to `wakebot.pyw` and set it to run with Pythonw
-- For Linux/macOS, use `nohup` or system service manager
-
-## Architecture
-
-### Project Structure
-
-```
-wakebot/
-├── main.py              # Entry point with terminal
-├── wakebot.pyw          # Entry point for background (Windows)
-├── calibrate.py         # Standalone calibration tool
-├── config.py            # Configuration dataclass and loader
-├── wakebot_config.json  # User configuration (generated)
-├── src/
-│   ├── __init__.py
-│   ├── audio_engine.py  # PyAudio stream handling
-│   ├── clap_detector.py # State machine pattern recognition
-│   ├── actions.py       # System automation actions
-│   └── logger.py        # Colored terminal logging
-├── requirements.txt     # Python dependencies
-├── setup.bat            # Windows setup script
-├── setup.sh             # Linux/Mac setup script
-└── README.md            # This file
-```
-
-### Module Overview
-
-- **audio_engine.py**: Handles microphone stream with automatic error recovery
-- **clap_detector.py**: State machine for pattern recognition (IDLE → COOLDOWN → WAITING_*)
-- **actions.py**: System automation (keypress, browser, toggle)
-- **logger.py**: Colored terminal output using colorama
-- **config.py**: Centralized configuration management
-
-## System Requirements
-
-- **Python**: 3.8 or higher
-- **Operating System**: Windows 10+, macOS 10.14+, or Linux
-- **Audio**: Microphone access permissions enabled
-- **Power Settings**: Display should be configured to wake from sleep (not deep sleep)
-
-## Dependencies
-
-- `pyaudio`: Audio stream capture (requires PortAudio)
-- `numpy`: Audio signal processing (RMS calculation)
-- `pyautogui`: System automation (keypress simulation)
-- `colorama`: Colored terminal output
-
-## Development
-
-### Running Tests
-
-Test each module independently:
-
-1. **Audio Engine**: Run `calibrate.py` to verify microphone access
-2. **Clap Detector**: Enable `log_rms_values` in config and observe detection
-3. **Actions**: Manually test wake screen, browser, and toggle
-
-### Adding Custom Actions
-
-To add custom actions:
-
-1. Extend `WakeBotActions` class in `src/actions.py`
-2. Add detection state in `src/clap_detector.py` (if new pattern needed)
-3. Wire action in `main.py` main loop
-
-## Known Limitations
-
-- Clap detection works best in quiet environments
-- Very loud ambient noise may cause false positives
-- Multiple microphones: Uses system default (no device selection UI)
-- Windows background mode: Requires `pythonw` execution
-
-## License
-
-MIT License - See LICENSE file for details
-
-## Contributing
-
-Contributions welcome! Please feel free to submit issues or pull requests.
-
-## Support
-
-For issues, bugs, or feature requests, please open an issue on the project repository.
+<p align="center">
+  <h1 align="center">🤖 WakeBot — Big Bot</h1>
+  <p align="center">
+    <em>An autonomous, multi-modal environment orchestrator for your desktop.</em><br>
+    <strong>Audio Triggers • Computer Vision • AI-Powered Awareness</strong>
+  </p>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" />
+  <img src="https://img.shields.io/badge/status-Active%20Development-00C853?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-2.0.0-blueviolet?style=for-the-badge" />
+</p>
 
 ---
 
-**Enjoy your clap-controlled automation! 👏**
+## 🧠 What is WakeBot?
+
+WakeBot (codename: **Big Bot**) is a Python-powered desktop automation daemon that reacts to **audio cues** (claps, voice commands) and **visual context** (webcam presence, screen content, AI vision models) to orchestrate your workspace — waking your PC, launching VS Code, playing Spotify, detecting errors on screen, and more.
+
+It is designed with a **Principal Architect philosophy**: every module runs on its own daemon thread, communicates via thread-safe events, and never blocks the main execution loop.
+
+---
+
+## ✨ Features at a Glance
+
+| Feature | Trigger | Module |
+|---|---|---|
+| 👏 **Single Clap** → Wake PC + VS Code + Spotify | Audio | `audio_cmd.py` |
+| 👏👏 **Double Clap** → Goodnight (Pause Music + Screen Off) | Audio | `audio_cmd.py` |
+| 🗣️ **Voice Command** → "Wake up daddy's home" | Audio (Vosk) | `audio_cmd.py` |
+| 👤 **Walk-up Detection** → Auto Welcome Home | Vision (Phase 1) | `presence.py` |
+| 🚶 **Walk-away Detection** → Auto Goodnight (2 min) | Vision (Phase 1) | `presence.py` |
+| 🖥️ **Screen OCR** → Detect errors, media, active apps | Vision (Phase 2) | `screen.py` |
+| 🧠 **AI Vision Analysis** → "What am I doing?" via VLM | Vision (Phase 3) | `multimodal.py` |
+
+---
+
+## 🚀 Quick Start
+
+### 1️⃣ Clone & Install
+
+```bash
+git clone https://github.com/your-username/Wake_Bot.git
+cd Wake_Bot
+
+# Create virtual environment
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate   # Linux/macOS
+
+# Install all dependencies
+pip install -r requirements.txt
+```
+
+### 2️⃣ Setup Voice Model (Optional)
+
+WakeBot uses **Vosk** for offline voice recognition.
+
+1. Download a model from [Vosk Models](https://alphacephei.com/vosk/models) (recommended: `vosk-model-small-en-us-0.15`, ~40MB)
+2. Extract into the `model/` directory in the project root
+3. Directory should look like: `Wake_Bot/model/am/...`, `Wake_Bot/model/graph/...`
+
+### 3️⃣ Calibrate Audio (First Time)
+
+```bash
+python -m wakebot calibrate
+```
+
+Follow the prompts: sit quietly for 5 seconds, then clap loudly 5 times. The tool will recommend a threshold value — update `wakebot_config.json` accordingly.
+
+### 4️⃣ Run WakeBot
+
+```bash
+# 🎧 Audio Mode — Claps & Voice triggers
+python -m wakebot run audio
+
+# 👁️ Vision Mode — Full Awareness (Presence + Screen + AI)
+python -m wakebot run vision
+
+# Legacy entry point (audio only)
+python main.py
+```
+
+---
+
+## 🎮 CLI Commands
+
+WakeBot uses a unified CLI router. All commands are accessible via `python -m wakebot`.
+
+| Command | Description |
+|---|---|
+| `python -m wakebot run audio` | 🎧 Start audio detection (claps + voice) |
+| `python -m wakebot run vision` | 👁️ Start full vision awareness (all 3 phases) |
+| `python -m wakebot audio` | 🎧 Direct audio mode (shorthand) |
+| `python -m wakebot vision` | 👁️ Direct vision mode (shorthand) |
+| `python -m wakebot calibrate` | 🔧 Run the audio calibration tool |
+
+---
+
+## 🏗️ Architecture
+
+### 📁 Project Structure
+
+```
+Wake_Bot/
+├── 📄 main.py                          # Legacy entry point (audio loop)
+├── 📄 wakebot_config.json              # Runtime configuration (JSON)
+├── 📄 requirements.txt                 # Python dependencies
+├── 📄 Full_Awareness.md                # Vision architecture plan
+│
+├── 📂 model/                           # Vosk speech recognition model
+│
+├── 📂 wakebot/                         # Main package
+│   ├── 📄 __init__.py                  # Package root (v2.0.0)
+│   ├── 📄 __main__.py                  # python -m wakebot entrypoint
+│   │
+│   ├── 📂 core/                        # Core logic & shared infrastructure
+│   │   ├── 📄 actions.py               # WakeBotActions (wake, VS Code, Spotify, goodnight)
+│   │   ├── 📄 config.py                # WakeBotConfig dataclass + JSON loader
+│   │   ├── 📄 detector.py              # BaseDetector ABC (interface for all triggers)
+│   │   ├── 📄 logger.py                # WakeBotLogger (timestamped console output)
+│   │   └── 📄 workspace_state.py       # 🆕 Thread-safe global state (WorkspaceState)
+│   │
+│   ├── 📂 cli/                         # CLI routing & command handlers
+│   │   ├── 📄 main.py                  # Unified CLI router (argparse)
+│   │   ├── 📄 audio_cmd.py             # Threaded audio pipeline (3 daemon threads)
+│   │   ├── 📄 vision_cmd.py            # 🆕 Full Awareness orchestrator (3 phases)
+│   │   └── 📄 calibrate_cmd.py         # Audio threshold calibration tool
+│   │
+│   └── 📂 triggers/                    # Sensor modules (input only — no action logic)
+│       ├── 📂 audio/
+│       │   ├── 📄 engine.py            # AudioStream (PyAudio wrapper)
+│       │   ├── 📄 detector.py          # ClapDetector (single/double clap FSM)
+│       │   ├── 📄 voice.py             # VoiceDetector (Vosk-based)
+│       │   └── 📄 model_downloader.py  # Vosk model auto-downloader
+│       │
+│       └── 📂 vision/
+│           ├── 📄 engine.py            # CameraEngine (OpenCV VideoCapture wrapper)
+│           ├── 📄 detector.py          # PersonDetector (legacy Haar Cascades)
+│           ├── 📄 presence.py          # 🆕 Phase 1: MediaPipe presence monitor
+│           ├── 📄 screen.py            # 🆕 Phase 2: Screen OCR (mss + EasyOCR)
+│           └── 📄 multimodal.py        # 🆕 Phase 3: VLM engine (Ollama/Gemini)
+│
+└── 📂 src/                             # Legacy modules (audio engine, clap detector)
+```
+
+### 🧵 Threading Model
+
+WakeBot uses a **producer/consumer + event-driven** threading model. No module directly calls `WakeBotActions` — they set `threading.Event` flags that the master orchestration loop polls at 10 Hz.
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌────────────────────┐
+│  Audio Producer  │     │  Presence Monitor │     │   Screen Monitor   │
+│  (mic → queue)   │     │  (webcam @ 5 FPS) │     │  (OCR @ 10s)       │
+└───────┬─────────┘     └────────┬─────────┘     └─────────┬──────────┘
+        │                        │                          │
+        ▼                        ▼                          ▼
+┌─────────────────┐     ┌──────────────────┐     ┌────────────────────┐
+│ Detection Worker │     │   wake_event ⚡   │     │  WorkspaceState 🔒 │
+│ (clap + voice)   │     │   sleep_event ⚡  │     │  (thread-safe)     │
+└───────┬─────────┘     └────────┬─────────┘     └────────────────────┘
+        │                        │
+        ▼                        ▼
+   ┌─────────────────────────────────────┐
+   │     Master Orchestration Loop       │
+   │  (polls events → calls actions)     │
+   │  wake_event → welcome_home()        │
+   │  sleep_event → goodnight()          │
+   └─────────────────────────────────────┘
+```
+
+---
+
+## 👁️ Vision System — Full Awareness
+
+The vision system is implemented in 3 progressive phases, each building on the last.
+
+### Phase 1: 👤 Presence Detection (`presence.py`)
+- **Tech**: OpenCV + MediaPipe FaceDetection (short-range model)
+- **Behavior**: Samples webcam at 5 FPS. Detects face → sets `wake_event`. Face absent for >2 minutes → sets `sleep_event`.
+- **CPU Impact**: ~2-5ms per frame inference. Under 3% total CPU at 5 FPS.
+
+### Phase 2: 🖥️ Screen & OCR Awareness (`screen.py`)
+- **Tech**: `mss` (screen capture) + `EasyOCR` (GPU-accelerated if CUDA available)
+- **Behavior**: Captures the primary monitor every 10 seconds, extracts text, and detects:
+  - 🎮 **Fullscreen Media/Games** (Netflix, Minecraft, GTA, etc.) → suppresses notifications
+  - 🐛 **Error Traces** (Python tracebacks, npm errors, etc.) → flags for proactive assistance
+- **Killswitch**: `screen.pause()` / `screen.resume()` to instantly halt OCR.
+
+### Phase 3: 🧠 Multi-Modal VLM (`multimodal.py`)
+- **Tech**: Webcam + Screen → base64 → Ollama (LLaVA) or Google Gemini 1.5 Pro
+- **Behavior**: Periodically (every 60s) or on-demand (via hotword) sends combined frames to a Vision-Language Model.
+- **Use Cases**:
+  - "What am I working on?" → VLM reads screen
+  - "What am I holding?" → VLM analyzes webcam
+  - Autonomous state detection: working, relaxing, or away
+
+### 🧠 VLM Backend Setup
+
+**Option A: Ollama (Local, Free, Private)**
+```bash
+# Install Ollama: https://ollama.com
+ollama pull llava
+# WakeBot connects to http://localhost:11434 automatically
+```
+
+**Option B: Google Gemini (Cloud, Higher Quality)**
+```bash
+# Set your API key
+set GEMINI_API_KEY=your_api_key_here
+
+# Update config
+# In wakebot_config.json: "vlm_provider": "gemini"
+```
+
+---
+
+## ⚙️ Configuration
+
+All configuration lives in `wakebot_config.json` (auto-generated on first run).
+
+```json
+{
+    "chunk_size": 1024,
+    "sample_rate": 16000,
+    "channels": 1,
+    "threshold": 3000,
+    "cooldown_ms": 100,
+    "double_clap_window_ms": 500,
+
+    "voice_enabled": true,
+    "wake_phrases": ["wake up", "daddy's home"],
+    "model_path": "model",
+
+    "vision_enabled": false,
+    "camera_index": 0,
+    "vision_fps": 5.0,
+    "absence_threshold": 120.0,
+    "screen_interval": 10.0,
+    "vlm_provider": "ollama",
+    "vlm_interval": 60.0,
+
+    "wake_key": "shift",
+    "open_lock_screen": true,
+    "log_rms_values": false
+}
+```
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `threshold` | int | 3000 | RMS threshold for clap detection |
+| `double_clap_window_ms` | int | 500 | Max gap between claps for double-clap |
+| `voice_enabled` | bool | true | Enable Vosk voice recognition |
+| `vision_enabled` | bool | false | Enable camera presence detection |
+| `camera_index` | int | 0 | OpenCV camera device index |
+| `vision_fps` | float | 5.0 | Presence monitor frame rate |
+| `absence_threshold` | float | 120.0 | Seconds before walk-away triggers goodnight |
+| `screen_interval` | float | 10.0 | Seconds between screen OCR captures |
+| `vlm_provider` | str | "ollama" | VLM backend: `"ollama"` or `"gemini"` |
+| `vlm_interval` | float | 60.0 | Seconds between periodic VLM analyses |
+
+---
+
+## 📦 Dependencies
+
+### Core
+| Package | Purpose |
+|---|---|
+| `pyaudio` | Microphone stream capture |
+| `numpy` | Audio signal processing (RMS) |
+| `pyautogui` | System automation (keypress) |
+| `pywin32` | Windows API (window management) |
+| `colorama` | Colored terminal output |
+
+### Vision (Phase 1-3)
+| Package | Purpose |
+|---|---|
+| `opencv-python` | Webcam video capture & frame processing |
+| `mediapipe` | Ultra-fast face detection (Phase 1) |
+| `mss` | High-speed screen capture (Phase 2) |
+| `easyocr` | Optical character recognition (Phase 2) |
+| `requests` | Ollama API communication (Phase 3) |
+| `google-generativeai` | *(Optional)* Gemini API (Phase 3) |
+
+---
+
+## 🔧 Troubleshooting
+
+<details>
+<summary>🎤 Microphone Not Detected</summary>
+
+- **Windows**: Settings → Privacy → Microphone → Allow apps
+- Ensure no other app has exclusive microphone access
+- Run `python -m wakebot calibrate` to test
+</details>
+
+<details>
+<summary>👏 Claps Not Registering</summary>
+
+1. Run `python -m wakebot calibrate`
+2. Lower `threshold` in `wakebot_config.json` (try 70-80% of current)
+3. Clap closer to the microphone
+4. Ensure a quiet environment
+</details>
+
+<details>
+<summary>📷 Camera Not Working (Vision Mode)</summary>
+
+- Check Windows Privacy → Camera → Allow apps
+- Ensure no other app (Zoom, Teams) is using the camera
+- Try changing `camera_index` to `1` in config
+- WakeBot auto-retries camera after 5s on failure
+</details>
+
+<details>
+<summary>🧠 Ollama/VLM Not Responding</summary>
+
+- Ensure Ollama is running: `ollama serve`
+- Pull the model: `ollama pull llava`
+- Check `http://localhost:11434` is accessible
+</details>
+
+---
+
+## 🗺️ Roadmap & Future Growth
+
+- [ ] 🎛️ **System Tray UI** — `pystray` widget with pause/resume toggles for each subsystem
+- [ ] 🗣️ **TTS Responses** — Proactive voice feedback ("I see an error on line 42...")
+- [ ] 🌙 **Ambient Awareness** — Auto-adjust brightness/volume based on room state
+- [ ] 🔗 **Smart Home Integration** — IoT triggers (lights, plugs) via MQTT
+- [ ] 📱 **Mobile Companion** — Push notifications via Pushover/Telegram
+- [ ] 🧪 **Gesture Recognition** — MediaPipe hand tracking for custom gestures
+- [ ] 🔐 **Face ID Lock** — Lock PC when an unrecognized face is detected
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! The architecture is designed for modularity:
+
+1. **New Audio Triggers** → Add a detector in `wakebot/triggers/audio/` implementing `BaseDetector`
+2. **New Vision Triggers** → Add a daemon thread in `wakebot/triggers/vision/` emitting to `threading.Event`
+3. **New Actions** → Extend `WakeBotActions` in `wakebot/core/actions.py`
+
+---
+
+## 📄 License
+
+MIT License — See LICENSE for details.
+
+---
+
+<p align="center">
+  <strong>👏 Clap to wake. 👁️ See to understand. 🧠 Think to act.</strong><br>
+  <em>Built with ❤️ by the Big Bot team.</em>
+</p>

@@ -1,0 +1,14 @@
+pyaudio>=0.2.14
+numpy>=1.24.0
+pyautogui>=0.9.54
+colorama>=0.4.6
+pywin32>=306
+# Phase 1: Presence Detection
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+# Phase 2: Screen & OCR
+mss>=9.0.0
+easyocr>=1.7.0
+# Phase 3: Multi-Modal VLM (optional — pick one)
+requests>=2.31.0
+# google-generativeai>=0.5.0  # Uncomment for Gemini backend

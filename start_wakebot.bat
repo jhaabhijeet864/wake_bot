@@ -7,8 +7,10 @@ if exist "wakebot_env\Scripts\activate.bat" (
     call wakebot_env\Scripts\activate.bat
 )
 
-:: Run the Audio mode by default as it is the primary interface
-:: Using python (instead of pythonw) because run_hidden.vbs handles the window hiding
-python -m wakebot audio
+:: Set your Gemini API Key here for the AI Greeting
+set GEMINI_API_KEY=your_actual_api_key_here
+
+:: Run the Audio mode by default
+python -m wakebot run audio
 
 exit
