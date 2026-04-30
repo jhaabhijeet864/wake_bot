@@ -30,3 +30,7 @@ nul
 # Models
 model/
 vosk_model/
+
+.env
+
+start_wakebot.bat
