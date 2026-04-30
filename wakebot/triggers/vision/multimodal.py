@@ -40,6 +40,7 @@ class MultiModalEngine(threading.Thread):
         interval: float = 60.0,
         vlm_provider: str = "ollama",
         logger: Optional[WakeBotLogger] = None,
+        presence_monitor=None,
     ):
         super().__init__(name="MultiModalEngine", daemon=True)
 
@@ -54,6 +55,7 @@ class MultiModalEngine(threading.Thread):
         self._logger = logger or WakeBotLogger()
         self._response_callback: Optional[Callable[[str], None]] = None
         self._paused = False # UI Toggle state
+        self._presence_monitor = presence_monitor  # Optional: for frame sharing
 
     # ------------------------------------------------------------------
     # Thread entry

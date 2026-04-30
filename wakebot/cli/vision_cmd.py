@@ -12,13 +12,23 @@ from wakebot.triggers.vision.presence import PresenceMonitor
 from wakebot.triggers.vision.screen import ScreenMonitor
 from wakebot.triggers.vision.multimodal import MultiModalEngine
 from wakebot.core.dashboard import WakeBotDashboard
+from colorama import Fore, Style
 
 
 def run_vision():
     """Run the full vision awareness pipeline with Dashboard UI."""
     config = load_config()
-    logger = WakeBotLogger()
+    logger = WakeBotLogger(quiet=True)
     actions = WakeBotActions(logger=logger)
+
+    print(f"""
+{Fore.CYAN}{Style.BRIGHT}    W A K E B O T  |  V I S I O N  E N G I N E{Style.RESET_ALL}
+{Fore.WHITE}    ------------------------------------------
+    [ STATUS ] Dashboard Active
+    [ ENGINE ] Multi-Modal v2.0
+    [ CTRL+C ] Graceful Shutdown
+    ------------------------------------------
+    {Style.RESET_ALL}""")
 
     # Shared state container (thread-safe)
     workspace_state = WorkspaceState()

@@ -33,6 +33,13 @@ class WorkspaceState:
             # Phase 3: Multi-Modal
             "vlm_last_analysis": "",
             "vlm_last_timestamp": 0.0,
+
+            # Hardware Telemetry
+            "gpu_name": "",
+            "gpu_vram_used_mb": 0,
+            "gpu_vram_total_mb": 0,
+            "gpu_util_percent": 0,
+            "gpu_temp_c": 0,
         }
 
     def get(self, key: str, default: Any = None) -> Any:

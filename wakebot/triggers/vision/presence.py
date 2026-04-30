@@ -9,6 +9,12 @@ Thread-safety contract:
   - Camera is released on stop() or on unrecoverable failure.
 """
 
+# CRITICAL: Must be set before mediapipe is imported anywhere.
+# protobuf 5.x C++ parser cannot parse MediaPipe's internal graph configs.
+# Forces pure-Python parser. One-time init cost only, no per-frame impact.
+import os
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 import time
 import threading
 from typing import Optional
@@ -89,8 +95,10 @@ class PresenceMonitor(threading.Thread):
                 min_detection_confidence=self._detection_confidence,
             )
         except Exception as e:
-            self._logger.error(f"MediaPipe FaceDetection failed to initialize: {e}")
-            self._logger.warning("Presence detection will be disabled for this session.")
+            self._logger.warning(
+                f"AI Face Detection initialization failed: {e}. "
+                "Falling back to Efficient Motion Detection for presence tracking."
+            )
             self._face_detection = None
 
         if not self._camera.initialize():
@@ -253,3 +261,8 @@ class PresenceMonitor(threading.Thread):
         """Signal the thread to stop and wait for it to finish."""
         self._stop_event.set()
         self.join(timeout=3.0)
+
+    def get_latest_frame(self):
+        """Thread-safe access to the last captured frame."""
+        with self._frame_lock:
+            return self._latest_frame.copy() if self._latest_frame is not None else None

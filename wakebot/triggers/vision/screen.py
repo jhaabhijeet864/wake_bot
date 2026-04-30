@@ -91,26 +91,36 @@ class ScreenMonitor(threading.Thread):
 
         if not easyocr:
             self._logger.error(
-                "easyocr not installed. Screen monitoring disabled."
+                f"easyocr initialization failed: {import_error}. "
+                "Screen monitoring (OCR) disabled."
             )
             return
 
         # Initialize OCR reader (may download model on first run)
+        cuda_available = False
+        try:
+            import torch
+            cuda_available = torch.cuda.is_available()
+            if cuda_available:
+                self._logger.info(
+                    f"CUDA detected: {torch.cuda.get_device_name(0)} — EasyOCR will use GPU."
+                )
+            else:
+                self._logger.warning("CUDA not available. EasyOCR will use CPU (slower).")
+        except ImportError:
+            self._logger.warning("PyTorch not installed. EasyOCR will use CPU.")
+
         try:
             self._logger.info(
                 "Initializing EasyOCR reader (this may take a moment)..."
             )
-            self._reader = easyocr.Reader(["en"], gpu=True, verbose=False)
-            self._logger.info("EasyOCR reader initialized (GPU).")
-        except Exception:
-            try:
-                self._reader = easyocr.Reader(
-                    ["en"], gpu=False, verbose=False
-                )
-                self._logger.info("EasyOCR reader initialized (CPU fallback).")
-            except Exception as e:
-                self._logger.error(f"EasyOCR init failed completely: {e}")
-                return
+            self._reader = easyocr.Reader(["en"], gpu=cuda_available, verbose=False)
+            self._logger.info(
+                f"EasyOCR reader initialized ({'GPU' if cuda_available else 'CPU'})."
+            )
+        except Exception as e:
+            self._logger.error(f"EasyOCR init failed: {e}")
+            return
 
         self._logger.info(
             f"Screen Monitor started: {self._interval}s interval"
@@ -215,3 +225,4 @@ class ScreenMonitor(threading.Thread):
         self._stop_event.set()
         self._pause_event.set()  # Unblock if paused so thread can exit
         self.join(timeout=5.0)
+5.0)
