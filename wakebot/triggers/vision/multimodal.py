@@ -53,6 +53,7 @@ class MultiModalEngine(threading.Thread):
         self._query_lock = threading.Lock()
         self._logger = logger or WakeBotLogger()
         self._response_callback: Optional[Callable[[str], None]] = None
+        self._paused = False # UI Toggle state
 
     # ------------------------------------------------------------------
     # Thread entry
@@ -69,6 +70,9 @@ class MultiModalEngine(threading.Thread):
 
             if self._stop_event.is_set():
                 break
+
+            if self._paused:
+                continue
 
             if triggered:
                 self._query_event.clear()
@@ -124,6 +128,20 @@ class MultiModalEngine(threading.Thread):
         """Grab a single webcam frame -> base64 JPEG."""
         if not cv2:
             return None
+        
+        # Priority 1: Use shared frame from PresenceMonitor to avoid resource conflict
+        if self._presence_monitor:
+            try:
+                frame = self._presence_monitor.get_latest_frame()
+                if frame is not None:
+                    _, buf = cv2.imencode(
+                        ".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60]
+                    )
+                    return base64.b64encode(buf).decode("utf-8")
+            except Exception as e:
+                self._logger.error(f"Failed to get frame from PresenceMonitor: {e}")
+
+        # Priority 2: Direct capture fallback (only if no PresenceMonitor)
         cap = None
         try:
             cap = cv2.VideoCapture(self._camera_index)
@@ -240,6 +258,16 @@ class MultiModalEngine(threading.Thread):
             self._pending_query = prompt
             self._response_callback = callback
         self._query_event.set()
+
+    def pause(self):
+        """Pause VLM analysis."""
+        self._paused = True
+        self._logger.info("Multi-Modal Engine PAUSED.")
+
+    def resume(self):
+        """Resume VLM analysis."""
+        self._paused = False
+        self._logger.info("Multi-Modal Engine RESUMED.")
 
     def stop(self):
         """Signal the thread to stop."""

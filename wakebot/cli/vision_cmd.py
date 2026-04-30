@@ -5,21 +5,26 @@ Follows the same threading.Event pattern established in audio_cmd.py.
 """
 
 import time
+import queue
 import threading
 from wakebot.core import load_config, WakeBotLogger, WakeBotActions, WorkspaceState
 from wakebot.triggers.vision.presence import PresenceMonitor
 from wakebot.triggers.vision.screen import ScreenMonitor
 from wakebot.triggers.vision.multimodal import MultiModalEngine
+from wakebot.core.dashboard import WakeBotDashboard
 
 
 def run_vision():
-    """Run the full vision awareness pipeline."""
+    """Run the full vision awareness pipeline with Dashboard UI."""
     config = load_config()
     logger = WakeBotLogger()
     actions = WakeBotActions(logger=logger)
 
     # Shared state container (thread-safe)
     workspace_state = WorkspaceState()
+    
+    # Frame queue for UI preview
+    frame_queue = queue.Queue(maxsize=1)
 
     # Shared threading events (same pattern as audio_cmd.py)
     wake_event = threading.Event()
@@ -34,6 +39,7 @@ def run_vision():
         absence_threshold=config.absence_threshold,
         logger=logger,
     )
+    presence._frame_queue = frame_queue
 
     # ---- Phase 2: Screen Monitor ----
     screen = ScreenMonitor(
@@ -49,29 +55,13 @@ def run_vision():
         vlm_provider=config.vlm_provider,
         interval=config.vlm_interval,
         logger=logger,
+        presence_monitor=presence, # Enable frame sharing
     )
 
-    print("""
-    ╔═══════════════════════════════════════╗
-    ║      WakeBot Full Awareness Mode      ║
-    ║  Phase 1: Presence Detection          ║
-    ║  Phase 2: Screen & OCR Awareness      ║
-    ║  Phase 3: Multi-Modal VLM             ║
-    ╚═══════════════════════════════════════╝
-
-    Press Ctrl+C to exit
-    """)
-
-    # Start all subsystems
-    presence.start()
-    screen.start()
-    multimodal.start()
-
-    logger.info("Full Awareness Mode active. All vision subsystems running.")
-
-    # Master Orchestration Loop (mirrors audio_cmd.py pattern)
-    try:
-        while True:
+    # Orchestration logic in a separate thread (so UI can stay on main)
+    def orchestrator():
+        logger.info("Orchestration thread active.")
+        while not stop_all.is_set():
             if wake_event.is_set():
                 logger.action("VISION TRIGGER: Welcome Home Sequence")
                 workspace_state.set("user_present", True)
@@ -85,13 +75,34 @@ def run_vision():
                 actions.goodnight()
                 wake_event.clear()
                 sleep_event.clear()
-
             time.sleep(0.1)
 
+    stop_all = threading.Event()
+    orch_thread = threading.Thread(target=orchestrator, daemon=True)
+
+    # Start all subsystems
+    presence.start()
+    screen.start()
+    multimodal.start()
+    orch_thread.start()
+
+    # Launch Dashboard (Blocks Main Thread)
+    try:
+        dashboard = WakeBotDashboard(
+            workspace_state=workspace_state,
+            frame_queue=frame_queue,
+            presence_monitor=presence,
+            screen_monitor=screen,
+            vlm_engine=multimodal,
+            logger=logger
+        )
+        dashboard.start_dashboard()
     except KeyboardInterrupt:
-        logger.info("Shutdown requested by user.")
+        pass
     finally:
+        stop_all.set()
         presence.stop()
         screen.stop()
         multimodal.stop()
         logger.info("All vision subsystems stopped. Cleanup complete.")
+

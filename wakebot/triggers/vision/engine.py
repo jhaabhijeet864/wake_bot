@@ -30,6 +30,10 @@ class CameraEngine:
         except Exception as e:
             print(f"Error initializing camera: {e}")
             return False
+
+    def is_opened(self) -> bool:
+        """Check if camera is initialized and open."""
+        return self.camera is not None and self.camera.isOpened()
             
     def read_frame(self):
         """Read a single frame from the camera"""
