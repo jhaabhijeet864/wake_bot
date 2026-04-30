@@ -33,6 +33,11 @@ class WakeBotConfig:
     # Vision Settings
     vision_enabled: bool = False
     camera_index: int = 0
+    vision_fps: float = 5.0
+    absence_threshold: float = 120.0
+    screen_interval: float = 10.0
+    vlm_provider: str = "ollama"
+    vlm_interval: float = 60.0
     
     # Action Settings
     youtube_url: str = "https://www.youtube.com"

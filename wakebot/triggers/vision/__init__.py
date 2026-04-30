@@ -1,4 +1,8 @@
 """
 WakeBot Vision Triggers
-Camera and person-based event detection.
+Camera and screen-based event detection.
 """
+
+from .presence import PresenceMonitor
+from .screen import ScreenMonitor
+from .multimodal import MultiModalEngine
