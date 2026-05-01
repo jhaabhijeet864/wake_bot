@@ -8,6 +8,7 @@ WakeBot Core Actions - Principal Architect Stable Baseline
 import os
 import ctypes
 import subprocess
+import shutil
 import platform
 import time
 from typing import List, Optional
@@ -75,7 +76,11 @@ class WakeBotActions:
         Maximizes VS Code if open, otherwise launches it.
         """
         if self.system != "Windows" or not win32gui:
-            subprocess.Popen('code', shell=True)
+            if shutil.which('code'):
+                subprocess.Popen(['code'])
+            else:
+                if self.logger:
+                    self.logger.error("VS Code ('code') not found in PATH.")
             return
 
         def find_vscode(hwnd, results):
@@ -99,7 +104,11 @@ class WakeBotActions:
         else:
             if self.logger:
                 self.logger.info("Launching VS Code...")
-            subprocess.Popen('code', shell=True)
+            if shutil.which('code'):
+                subprocess.Popen(['code'])
+            else:
+                if self.logger:
+                    self.logger.error("VS Code ('code') not found in PATH.")
 
     def play_startup_theme(self):
         """

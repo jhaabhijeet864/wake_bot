@@ -122,20 +122,31 @@ def run_audio():
     logger.info("WakeBot Audio system is active. Listening for triggers...")
 
     # 3. Master Orchestration Loop
+    last_action_time = 0.0
+    cooldown = config.action_cooldown_s
     try:
         while True:
+            now = time.time()
             # Check for Wake (Welcome Home)
             if wake_event.is_set():
-                logger.action("INITIATING: Welcome Home Sequence")
-                actions.welcome_home()
+                if now - last_action_time >= cooldown:
+                    logger.action("INITIATING: Welcome Home Sequence")
+                    actions.welcome_home()
+                    last_action_time = time.time()
+                else:
+                    logger.info("Wake event ignored (cooldown active).")
                 # Clear BOTH events to ignore any false triggers caused by the music/noise during startup
                 wake_event.clear()
                 sleep_event.clear()
             
             # Check for Sleep (Goodnight)
             if sleep_event.is_set():
-                logger.action("INITIATING: Goodnight Sequence")
-                actions.goodnight()
+                if now - last_action_time >= cooldown:
+                    logger.action("INITIATING: Goodnight Sequence")
+                    actions.goodnight()
+                    last_action_time = time.time()
+                else:
+                    logger.info("Sleep event ignored (cooldown active).")
                 wake_event.clear()
                 sleep_event.clear()
                 

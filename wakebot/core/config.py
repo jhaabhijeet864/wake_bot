@@ -39,6 +39,11 @@ class WakeBotConfig:
     vlm_provider: str = "ollama"
     vlm_interval: float = 60.0
     
+    # Privacy Settings
+    privacy_mode: bool = False
+    sensitive_apps: tuple = ("keepass", "1password", "bitwarden", "lastpass")
+    local_only: bool = False
+    
     # Action Settings
     youtube_url: str = "https://www.youtube.com"
     wake_key: str = "shift"
@@ -47,6 +52,7 @@ class WakeBotConfig:
     # Operational Settings
     start_active: bool = True
     log_rms_values: bool = False
+    action_cooldown_s: float = 5.0
     
     def to_dict(self) -> dict:
         """Convert config to dictionary"""
@@ -58,6 +64,8 @@ class WakeBotConfig:
         # Handle tuple/list conversion if necessary
         if "wake_phrases" in data and isinstance(data["wake_phrases"], list):
             data["wake_phrases"] = tuple(data["wake_phrases"])
+        if "sensitive_apps" in data and isinstance(data["sensitive_apps"], list):
+            data["sensitive_apps"] = tuple(data["sensitive_apps"])
         
         # Filter for only valid dataclass fields
         valid_keys = {f.name for f in cls.__dataclass_fields__.values()}
