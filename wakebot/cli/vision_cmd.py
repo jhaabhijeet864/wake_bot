@@ -21,6 +21,9 @@ def run_vision():
     logger = WakeBotLogger(quiet=True)
     actions = WakeBotActions(logger=logger)
 
+    # Resolve effective VLM provider (local_only overrides config)
+    effective_vlm_provider = "ollama" if config.local_only else config.vlm_provider
+
     print(f"""
 {Fore.CYAN}{Style.BRIGHT}    W A K E B O T  |  V I S I O N  E N G I N E{Style.RESET_ALL}
 {Fore.WHITE}    ------------------------------------------
@@ -55,6 +58,7 @@ def run_vision():
     screen = ScreenMonitor(
         workspace_state=workspace_state,
         interval=config.screen_interval,
+        sensitive_apps=config.sensitive_apps,
         logger=logger,
     )
 
@@ -62,8 +66,10 @@ def run_vision():
     multimodal = MultiModalEngine(
         workspace_state=workspace_state,
         camera_index=config.camera_index,
-        vlm_provider=config.vlm_provider,
+        vlm_provider=effective_vlm_provider,
         interval=config.vlm_interval,
+        privacy_mode=config.privacy_mode,
+        sensitive_apps=config.sensitive_apps,
         logger=logger,
         presence_monitor=presence, # Enable frame sharing
     )
@@ -71,18 +77,29 @@ def run_vision():
     # Orchestration logic in a separate thread (so UI can stay on main)
     def orchestrator():
         logger.info("Orchestration thread active.")
+        last_action_time = 0.0
+        cooldown = config.action_cooldown_s
         while not stop_all.is_set():
+            now = time.time()
             if wake_event.is_set():
-                logger.action("VISION TRIGGER: Welcome Home Sequence")
-                workspace_state.set("user_present", True)
-                actions.welcome_home()
+                if now - last_action_time >= cooldown:
+                    logger.action("VISION TRIGGER: Welcome Home Sequence")
+                    workspace_state.set("user_present", True)
+                    actions.welcome_home()
+                    last_action_time = time.time()
+                else:
+                    logger.info("Wake event ignored (cooldown active).")
                 wake_event.clear()
                 sleep_event.clear()
 
             if sleep_event.is_set():
-                logger.action("VISION TRIGGER: Goodnight Sequence")
-                workspace_state.set("user_present", False)
-                actions.goodnight()
+                if now - last_action_time >= cooldown:
+                    logger.action("VISION TRIGGER: Goodnight Sequence")
+                    workspace_state.set("user_present", False)
+                    actions.goodnight()
+                    last_action_time = time.time()
+                else:
+                    logger.info("Sleep event ignored (cooldown active).")
                 wake_event.clear()
                 sleep_event.clear()
             time.sleep(0.1)

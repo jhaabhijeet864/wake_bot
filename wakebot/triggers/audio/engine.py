@@ -8,9 +8,15 @@ import numpy as np
 import time
 from typing import Optional
 
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+
 
 class AudioStream:
-    """Manages PyAudio microphone stream with error recovery"""
+    """Manages PyAudio microphone stream with error recovery and GPU acceleration."""
     
     def __init__(self, chunk_size: int = 1024, sample_rate: int = 44100, 
                  channels: int = 1, format_type: int = pyaudio.paInt16):
@@ -24,6 +30,9 @@ class AudioStream:
         
         self.pyaudio_instance: Optional[pyaudio.PyAudio] = None
         self.stream: Optional[pyaudio.Stream] = None
+        
+        # GPU State
+        self._device = "cuda" if (HAS_TORCH and torch.cuda.is_available()) else "cpu"
         
     def start_stream(self) -> bool:
         """Open microphone stream"""
@@ -73,9 +82,22 @@ class AudioStream:
             raise Exception(f"Stream read error: {e}")
     
     def calculate_rms(self, audio_data: np.ndarray) -> float:
-        """Compute Root Mean Square of audio chunk"""
+        """Compute Root Mean Square of audio chunk. GPU accelerated if possible."""
         if len(audio_data) == 0:
             return 0.0
+            
+        try:
+            if self._device == "cuda":
+                # Move to GPU
+                t_audio = torch.from_numpy(audio_data.astype(np.float32)).to(self._device)
+                # Compute RMS: sqrt(mean(x^2))
+                rms = torch.sqrt(torch.mean(t_audio ** 2)).item()
+                return float(rms)
+        except Exception:
+            # Fallback to CPU if GPU fails
+            pass
+            
+        # CPU Fallback (NumPy)
         audio_float = audio_data.astype(np.float64)
         return np.sqrt(np.mean(audio_float ** 2))
     

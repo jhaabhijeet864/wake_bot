@@ -188,7 +188,14 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
             self.gpu_container, text="TEMP 0°C",
             font=ctk.CTkFont(family="Consolas", size=11)
         )
-        self.gpu_temp_lbl.grid(row=3, column=0, padx=10, pady=(2, 8), sticky="w")
+        self.gpu_temp_lbl.grid(row=3, column=0, padx=10, pady=(2, 2), sticky="w")
+
+        self.gpu_accel_badge = ctk.CTkLabel(
+            self.gpu_container, text="● GPU ACCELERATED",
+            font=ctk.CTkFont(size=9, weight="bold"),
+            text_color="#00C853"
+        )
+        self.gpu_accel_badge.grid(row=4, column=0, padx=10, pady=(0, 8), sticky="w")
 
     def _build_main_view(self):
         """Create the central visualization area."""

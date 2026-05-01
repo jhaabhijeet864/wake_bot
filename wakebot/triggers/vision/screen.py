@@ -62,12 +62,14 @@ class ScreenMonitor(threading.Thread):
         self,
         workspace_state,
         interval: float = 10.0,
+        sensitive_apps: tuple = (),
         logger: Optional[WakeBotLogger] = None,
     ):
         super().__init__(name="ScreenMonitor", daemon=True)
 
         self._workspace_state = workspace_state
         self._interval = interval
+        self._sensitive_apps = [app.lower() for app in sensitive_apps]
         self._stop_event = threading.Event()
 
         # Killswitch: set = running, clear = paused
@@ -91,7 +93,7 @@ class ScreenMonitor(threading.Thread):
 
         if not easyocr:
             self._logger.error(
-                f"easyocr initialization failed: {import_error}. "
+                "easyocr is not installed. "
                 "Screen monitoring (OCR) disabled."
             )
             return
@@ -148,6 +150,16 @@ class ScreenMonitor(threading.Thread):
         """Capture screen, run OCR, update WorkspaceState."""
         active_window = self._get_active_window()
 
+        # Privacy guard: skip capture if a sensitive app is focused
+        if self._sensitive_apps and active_window:
+            window_lower = active_window.lower()
+            for app in self._sensitive_apps:
+                if app in window_lower:
+                    self._logger.info(
+                        f"Screen capture SKIPPED: sensitive app detected ({app})"
+                    )
+                    return
+
         # Fullscreen media check (cheap — string compare only)
         is_media = any(
             p in active_window.lower() for p in MEDIA_PATTERNS
@@ -155,14 +167,37 @@ class ScreenMonitor(threading.Thread):
 
         # Screen capture
         import numpy as np
+        import torch
 
         with mss.mss() as sct:
             monitor = sct.monitors[1]  # Primary monitor
             screenshot = sct.grab(monitor)
-            img = np.array(screenshot)[:, :, :3]  # Drop alpha channel
+            img_np = np.array(screenshot)[:, :, :3]  # Drop alpha channel
+
+        # GPU Acceleration: Resize image before OCR
+        # High-res screen text is often overkill for OCR; resizing to ~720p 
+        # maintains readability while being MUCH faster.
+        processed_img = img_np
+        if cuda_available:
+            try:
+                # Move to GPU
+                t_img = torch.from_numpy(img_np).to("cuda").permute(2, 0, 1).float()
+                
+                # Resize if larger than 1280px width
+                if t_img.shape[2] > 1280:
+                    scale = 1280.0 / t_img.shape[2]
+                    new_size = (int(t_img.shape[1] * scale), 1280)
+                    # Use bilinear interpolation for smooth text
+                    t_img = torch.nn.functional.interpolate(
+                        t_img.unsqueeze(0), size=new_size, mode="bilinear", align_corners=False
+                    ).squeeze(0)
+                
+                processed_img = t_img.byte().permute(1, 2, 0).cpu().numpy()
+            except Exception as e:
+                self._logger.error(f"GPU Resize failed: {e}")
 
         # OCR
-        results = self._reader.readtext(img, detail=0)
+        results = self._reader.readtext(processed_img, detail=0)
         extracted = " ".join(results)
 
         # Error pattern matching
@@ -225,4 +260,3 @@ class ScreenMonitor(threading.Thread):
         self._stop_event.set()
         self._pause_event.set()  # Unblock if paused so thread can exit
         self.join(timeout=5.0)
-5.0)
