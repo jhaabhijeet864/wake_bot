@@ -18,3 +18,8 @@ customtkinter>=5.2.0
 Pillow>=10.0.0
 # GPU Telemetry
 pynvml>=11.0.0
+# Security & Credential Management
+keyring>=24.0.0
+python-dotenv>=1.0.0
+# System Tray
+pystray>=0.19.0

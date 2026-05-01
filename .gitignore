@@ -34,3 +34,7 @@ vosk_model/
 .env
 
 start_wakebot.bat
+
+# Build artifacts
+dist/
+build/
