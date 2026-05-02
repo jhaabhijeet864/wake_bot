@@ -4,7 +4,7 @@ Uses AudioOrchestrator and EventBus for clean, decoupled audio triggering.
 """
 
 import time
-from wakebot.core import load_config, WakeBotLogger, WakeBotActions
+from wakebot.core import load_config, WakeBotLogger, WakeBotActions, WorkspaceState
 from wakebot.core.event_bus import EventBus
 from wakebot.core.audio_orchestrator import AudioOrchestrator
 
@@ -18,8 +18,11 @@ def run_audio():
     # Initialize Event Bus
     event_bus = EventBus()
     
+    # Shared state container (thread-safe)
+    workspace_state = WorkspaceState()
+    
     # WakeBotActions subscribes to EventBus automatically for USER_ARRIVED and USER_LEFT
-    actions = WakeBotActions(logger=logger, event_bus=event_bus)
+    actions = WakeBotActions(logger=logger, event_bus=event_bus, workspace_state=workspace_state)
     
     # ================================================================
     # AUDIO SUBSYSTEM (Consolidated)

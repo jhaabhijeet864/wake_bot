@@ -28,9 +28,12 @@ def run_vision():
     # Initialize Event Bus
     event_bus = EventBus()
     
-    # WakeBotActions subscribes to EventBus automatically
-    actions = WakeBotActions(logger=logger, event_bus=event_bus)
+    # Shared state container (thread-safe)
+    workspace_state = WorkspaceState()
 
+    # WakeBotActions subscribes to EventBus automatically
+    actions = WakeBotActions(logger=logger, event_bus=event_bus, workspace_state=workspace_state)
+    
     # Resolve effective VLM provider (local_only overrides config)
     effective_vlm_provider = "ollama" if config.local_only else config.vlm_provider
 
@@ -43,9 +46,6 @@ def run_vision():
     ------------------------------------------------
     {Style.RESET_ALL}""")
 
-    # Shared state container (thread-safe)
-    workspace_state = WorkspaceState()
-    
     # Frame queue for UI preview
     frame_queue = queue.Queue(maxsize=1)
 
