@@ -45,6 +45,10 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
         presence_monitor=None,
         screen_monitor=None,
         vlm_engine=None,
+        audio_engine=None,
+        clap_detector=None,
+        voice_detector=None,
+        audio_paused=None,
         logger=None,
     ):
         super().__init__()
@@ -57,13 +61,19 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
         self.screen_monitor = screen_monitor
         self.vlm_engine = vlm_engine
 
+        # Audio subsystem references
+        self.audio_engine = audio_engine
+        self.clap_detector = clap_detector
+        self.voice_detector = voice_detector
+        self.audio_paused = audio_paused  # threading.Event — set = paused
+
         self.logger = logger or WakeBotLogger()
 
         # Hardware telemetry
         self.hw_monitor = HardwareMonitor()
 
         # Window Setup
-        self.title("WakeBot Control Center — Big Bot v2.0")
+        self.title("WakeBot Control Center — Big Bot v2.1")
         self.geometry("1100x780")
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -109,25 +119,32 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
         )
         toggle_header.grid(row=2, column=0, padx=20, pady=(5, 5), sticky="w")
 
+        self.audio_switch = ctk.CTkSwitch(
+            self.sidebar_frame, text="\U0001F3A7 Audio Engine",
+            command=self._toggle_audio
+        )
+        self.audio_switch.grid(row=3, column=0, padx=20, pady=6, sticky="w")
+        self.audio_switch.select()
+
         self.vision_switch = ctk.CTkSwitch(
             self.sidebar_frame, text="Presence Engine",
             command=self._toggle_vision
         )
-        self.vision_switch.grid(row=3, column=0, padx=20, pady=6, sticky="w")
+        self.vision_switch.grid(row=4, column=0, padx=20, pady=6, sticky="w")
         self.vision_switch.select()
 
         self.ocr_switch = ctk.CTkSwitch(
             self.sidebar_frame, text="Screen Monitor",
             command=self._toggle_screen
         )
-        self.ocr_switch.grid(row=4, column=0, padx=20, pady=6, sticky="w")
+        self.ocr_switch.grid(row=5, column=0, padx=20, pady=6, sticky="w")
         self.ocr_switch.select()
 
         self.vlm_switch = ctk.CTkSwitch(
             self.sidebar_frame, text="AI Multi-Modal",
             command=self._toggle_vlm
         )
-        self.vlm_switch.grid(row=5, column=0, padx=20, pady=6, sticky="w")
+        self.vlm_switch.grid(row=6, column=0, padx=20, pady=6, sticky="w")
         self.vlm_switch.select()
 
         # ---- System Metrics ----
@@ -135,12 +152,12 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
             self.sidebar_frame, text="SYSTEM METRICS",
             font=ctk.CTkFont(size=10, weight="bold"), text_color="#888888"
         )
-        metrics_header.grid(row=6, column=0, padx=20, pady=(20, 5), sticky="w")
+        metrics_header.grid(row=7, column=0, padx=20, pady=(20, 5), sticky="w")
 
         self.metrics_container = ctk.CTkFrame(
             self.sidebar_frame, fg_color="#1a1a1a", corner_radius=8
         )
-        self.metrics_container.grid(row=7, column=0, padx=15, pady=5, sticky="ew")
+        self.metrics_container.grid(row=8, column=0, padx=15, pady=5, sticky="ew")
 
         self.cpu_lbl = ctk.CTkLabel(
             self.metrics_container, text="CPU      0%",
@@ -159,12 +176,12 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
             self.sidebar_frame, text="GPU TELEMETRY",
             font=ctk.CTkFont(size=10, weight="bold"), text_color="#888888"
         )
-        gpu_header.grid(row=8, column=0, padx=20, pady=(15, 5), sticky="w")
+        gpu_header.grid(row=9, column=0, padx=20, pady=(15, 5), sticky="w")
 
         self.gpu_container = ctk.CTkFrame(
             self.sidebar_frame, fg_color="#1a1a1a", corner_radius=8
         )
-        self.gpu_container.grid(row=9, column=0, padx=15, pady=5, sticky="ew")
+        self.gpu_container.grid(row=10, column=0, padx=15, pady=5, sticky="ew")
 
         self.gpu_name_lbl = ctk.CTkLabel(
             self.gpu_container, text="GPU  N/A",
@@ -256,6 +273,19 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
     # ------------------------------------------------------------------
     # Toggle Callbacks
     # ------------------------------------------------------------------
+    def _toggle_audio(self):
+        active = self.audio_switch.get()
+        if self.audio_paused:
+            if active:
+                self.audio_paused.clear()  # clear = unpaused (threads run)
+                self.logger.info("Audio Engine RESUMED via Dashboard.")
+            else:
+                self.audio_paused.set()  # set = paused (threads skip work)
+                self.logger.info("Audio Engine PAUSED via Dashboard.")
+        self.status_label.configure(
+            text=f"Audio Engine {'Resumed' if active else 'Paused'}"
+        )
+
     def _toggle_vision(self):
         active = self.vision_switch.get()
         if self.presence_monitor:
