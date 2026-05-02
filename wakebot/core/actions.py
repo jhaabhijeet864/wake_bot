@@ -37,10 +37,33 @@ class WakeBotActions:
     Streamlined for baseline stability.
     """
 
-    def __init__(self, logger=None):
+    def __init__(self, logger=None, event_bus=None):
         self.logger = logger
         self.system = platform.system()
         self.song_url = "https://open.spotify.com/track/2iEGj7kAwH7HAa5epwYwLB?si=9d4ab6ee60ab46c1"
+        self.event_bus = event_bus
+        self.last_action_time = 0.0
+        self.cooldown = 2.0  # Minimum seconds between actions
+
+        if self.event_bus:
+            self.event_bus.subscribe("USER_ARRIVED", self._on_user_arrived)
+            self.event_bus.subscribe("USER_LEFT", self._on_user_left)
+
+    def _on_user_arrived(self, data=None):
+        now = time.time()
+        if now - self.last_action_time >= self.cooldown:
+            self.welcome_home()
+            self.last_action_time = time.time()
+        elif self.logger:
+            self.logger.info("USER_ARRIVED event ignored (cooldown active).")
+
+    def _on_user_left(self, data=None):
+        now = time.time()
+        if now - self.last_action_time >= self.cooldown:
+            self.goodnight()
+            self.last_action_time = time.time()
+        elif self.logger:
+            self.logger.info("USER_LEFT event ignored (cooldown active).")
 
     def wake_system(self):
         """
