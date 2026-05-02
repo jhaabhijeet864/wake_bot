@@ -78,6 +78,7 @@ class ScreenMonitor(threading.Thread):
 
         self._logger = logger or WakeBotLogger()
         self._reader = None  # Lazy-init EasyOCR
+        self._cuda_available = False  # Set during run()
         self._error_res = [
             re.compile(p, re.IGNORECASE) for p in ERROR_PATTERNS
         ]
@@ -99,11 +100,11 @@ class ScreenMonitor(threading.Thread):
             return
 
         # Initialize OCR reader (may download model on first run)
-        cuda_available = False
+        self._cuda_available = False
         try:
             import torch
-            cuda_available = torch.cuda.is_available()
-            if cuda_available:
+            self._cuda_available = torch.cuda.is_available()
+            if self._cuda_available:
                 self._logger.info(
                     f"CUDA detected: {torch.cuda.get_device_name(0)} — EasyOCR will use GPU."
                 )
@@ -112,13 +113,14 @@ class ScreenMonitor(threading.Thread):
         except ImportError:
             self._logger.warning("PyTorch not installed. EasyOCR will use CPU.")
 
+
         try:
             self._logger.info(
                 "Initializing EasyOCR reader (this may take a moment)..."
             )
-            self._reader = easyocr.Reader(["en"], gpu=cuda_available, verbose=False)
+            self._reader = easyocr.Reader(["en"], gpu=self._cuda_available, verbose=False)
             self._logger.info(
-                f"EasyOCR reader initialized ({'GPU' if cuda_available else 'CPU'})."
+                f"EasyOCR reader initialized ({'GPU' if self._cuda_available else 'CPU'})."
             )
         except Exception as e:
             self._logger.error(f"EasyOCR init failed: {e}")
@@ -178,7 +180,7 @@ class ScreenMonitor(threading.Thread):
         # High-res screen text is often overkill for OCR; resizing to ~720p 
         # maintains readability while being MUCH faster.
         processed_img = img_np
-        if cuda_available:
+        if self._cuda_available:
             try:
                 # Move to GPU
                 t_img = torch.from_numpy(img_np).to("cuda").permute(2, 0, 1).float()

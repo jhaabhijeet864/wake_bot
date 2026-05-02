@@ -47,8 +47,7 @@ class PresenceMonitor(threading.Thread):
 
     def __init__(
         self,
-        wake_event: threading.Event,
-        sleep_event: threading.Event,
+        event_bus,
         camera_index: int = 0,
         target_fps: float = 5.0,
         absence_threshold: float = 120.0,
@@ -57,8 +56,7 @@ class PresenceMonitor(threading.Thread):
     ):
         super().__init__(name="PresenceMonitor", daemon=True)
 
-        self._wake_event = wake_event
-        self._sleep_event = sleep_event
+        self._event_bus = event_bus
         self._stop_event = threading.Event()
 
         self._camera = CameraEngine(camera_index=camera_index)
@@ -194,7 +192,8 @@ class PresenceMonitor(threading.Thread):
                 if not self._user_present:
                     self._user_present = True
                     self._logger.action("USER ARRIVED — Presence detected.")
-                    self._wake_event.set()
+                    if self._event_bus:
+                        self._event_bus.emit("USER_ARRIVED")
             else:
                 if self._user_present and (
                     now - self._last_seen_time > self._absence_threshold
@@ -203,7 +202,8 @@ class PresenceMonitor(threading.Thread):
                     self._logger.action(
                         f"USER LEFT — Absent for >{self._absence_threshold:.0f}s."
                     )
-                    self._sleep_event.set()
+                    if self._event_bus:
+                        self._event_bus.emit("USER_LEFT")
 
             # --- Enforce FPS via interruptible sleep ---
             elapsed = time.monotonic() - frame_start

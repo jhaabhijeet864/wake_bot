@@ -78,9 +78,6 @@ python -m wakebot run audio
 
 # 👁️ Vision Mode — Full Awareness (Presence + Screen + AI)
 python -m wakebot run vision
-
-# Legacy entry point (audio only)
-python main.py
 ```
 
 ---
@@ -105,23 +102,24 @@ WakeBot uses a unified CLI router. All commands are accessible via `python -m wa
 
 ```
 Wake_Bot/
-├── 📄 main.py                          # Legacy entry point (audio loop)
 ├── 📄 wakebot_config.json              # Runtime configuration (JSON)
 ├── 📄 requirements.txt                 # Python dependencies
 ├── 📄 Full_Awareness.md                # Vision architecture plan
 │
 ├── 📂 model/                           # Vosk speech recognition model
+├── 📂 scripts/                         # Environment setup scripts
 │
 ├── 📂 wakebot/                         # Main package
-│   ├── 📄 __init__.py                  # Package root (v2.0.0)
+│   ├── 📄 __init__.py                  # Package root (v2.1.0)
 │   ├── 📄 __main__.py                  # python -m wakebot entrypoint
 │   │
 │   ├── 📂 core/                        # Core logic & shared infrastructure
 │   │   ├── 📄 actions.py               # WakeBotActions (wake, VS Code, Spotify, goodnight)
 │   │   ├── 📄 config.py                # WakeBotConfig dataclass + JSON loader
-│   │   ├── 📄 detector.py              # BaseDetector ABC (interface for all triggers)
+│   │   ├── 📄 audio_orchestrator.py    # 🆕 Consolidated audio pipeline
+│   │   ├── 📄 event_bus.py             # 🆕 Thread-safe Pub/Sub coordinator
 │   │   ├── 📄 logger.py                # WakeBotLogger (timestamped console output)
-│   │   └── 📄 workspace_state.py       # 🆕 Thread-safe global state (WorkspaceState)
+│   │   └── 📄 workspace_state.py       # Thread-safe global state (WorkspaceState)
 │   │
 │   ├── 📂 cli/                         # CLI routing & command handlers
 │   │   ├── 📄 main.py                  # Unified CLI router (argparse)

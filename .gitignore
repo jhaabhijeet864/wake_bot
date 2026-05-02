@@ -37,4 +37,8 @@ start_wakebot.bat
 
 # Build artifacts
 dist/
-build/
+build/
+
+
+.wakebot_env
+env
