@@ -1,25 +1,34 @@
+# --- Core Dependencies ---
 pyaudio>=0.2.14
 numpy>=1.24.0
 pyautogui>=0.9.54
 colorama>=0.4.6
 pywin32>=306
 psutil>=5.9.0
-# Phase 1: Presence Detection
+
+# --- Phase 1: Presence Detection (CV) ---
 opencv-python>=4.8.0
 mediapipe>=0.10.0
-# Phase 2: Screen & OCR (GPU-accelerated via PyTorch CUDA)
+
+# --- Phase 2: Screen & OCR (GPU-accelerated) ---
 mss>=9.0.0
 easyocr>=1.7.0
-# Phase 3: Multi-Modal VLM
+torch
+torchvision
+
+# --- Phase 3: Multi-Modal VLM & TTS ---
 requests>=2.31.0
-# google-generativeai>=0.5.0  # Uncomment for Gemini backend
-# Dashboard UI
+google-generativeai>=0.5.0
+onnxruntime-gpu
+sounddevice
+vosk
+
+# --- Dashboard UI & Tray ---
 customtkinter>=5.2.0
 Pillow>=10.0.0
-# GPU Telemetry
-pynvml>=11.0.0
-# Security & Credential Management
+pystray>=0.19.0
+
+# --- Infrastructure ---
+nvidia-ml-py
 keyring>=24.0.0
 python-dotenv>=1.0.0
-# System Tray
-pystray>=0.19.0

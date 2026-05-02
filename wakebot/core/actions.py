@@ -1,8 +1,9 @@
 """
-WakeBot Core Actions - Principal Architect Stable Baseline
-- REMOVED: All TTS and Pygame dependencies for maximum stability.
-- RETAINED: Hardware wake, VS Code orchestration, and Spotify Force-Play.
-- SEQUENCE: Wake -> Workspace -> Spotify
+WakeBot Core Actions - Unified Action Dispatcher (v2.1.0)
+Subscribes to EventBus and manages system routines autonomously.
+- Fixed: VS Code launch path issue on Windows.
+- Integrated: Event-driven execution via EventBus.
+- Optimized: Debounced (cooldown) execution.
 """
 
 import os
@@ -11,18 +12,20 @@ import subprocess
 import shutil
 import platform
 import time
+import threading
 from typing import List, Optional
+from wakebot.core.logger import WakeBotLogger
+from wakebot.core.event_bus import EventBus
+from wakebot.core.workspace_state import WorkspaceState
 
-# Constants for Windows API
+# Windows Constants
 MOUSEEVENTF_MOVE = 0x0001
 VK_RETURN = 0x0D
 VK_MEDIA_PLAY_PAUSE = 0xB3
-VK_MEDIA_STOP = 0xB2
 KEYEVENTF_KEYUP = 0x0002
 WM_SYSCOMMAND = 0x0112
 SC_MONITORPOWER = 0xF170
 
-# Optional imports for Window Management
 try:
     import win32gui
     import win32con
@@ -30,162 +33,111 @@ except ImportError:
     win32gui = None
     win32con = None
 
-
 class WakeBotActions:
     """
-    Handles environment orchestration: Welcome Home and Goodnight routines.
-    Streamlined for baseline stability.
+    Subscribes to events and executes system automation routines.
     """
-
-    def __init__(self, logger=None, event_bus=None, workspace_state=None):
-        self.logger = logger
+    def __init__(self, logger=None):
+        self.logger = logger or WakeBotLogger()
         self.system = platform.system()
+        self.workspace_state = WorkspaceState()
+        self.event_bus = EventBus()
+        
+        # Cooldown management
+        self._last_action_time = 0.0
+        self._cooldown_s = 5.0 # Default cooldown
+        
+        # Subscriptions
+        self.event_bus.subscribe("USER_ARRIVED", self.on_user_arrived)
+        self.event_bus.subscribe("USER_LEFT", self.on_user_left)
+        
         self.song_url = "https://open.spotify.com/track/2iEGj7kAwH7HAa5epwYwLB?si=9d4ab6ee60ab46c1"
-        self.event_bus = event_bus
-        self.workspace_state = workspace_state
-        self.last_action_time = 0.0
-        self.cooldown = 2.0  # Minimum seconds between actions
 
-        if self.event_bus:
-            self.event_bus.subscribe("USER_ARRIVED", self._on_user_arrived)
-            self.event_bus.subscribe("USER_LEFT", self._on_user_left)
-
-    def _on_user_arrived(self, data=None):
+    def on_user_arrived(self, data=None):
+        """React to user arrival event."""
         now = time.time()
-        if now - self.last_action_time >= self.cooldown:
-            if self.workspace_state:
-                self.workspace_state.set("user_present", True)
-            self.welcome_home()
-            self.last_action_time = time.time()
-        elif self.logger:
-            self.logger.info("USER_ARRIVED event ignored (cooldown active).")
+        if now - self._last_action_time < self._cooldown_s:
+            return
+        
+        self.logger.action(f"Event Triggered: USER_ARRIVED (Source: {data.get('source', 'unknown') if data else 'unknown'})")
+        self.workspace_state.set("user_present", True)
+        self.welcome_home()
+        self._last_action_time = time.time()
 
-    def _on_user_left(self, data=None):
+    def on_user_left(self, data=None):
+        """React to user departure event."""
         now = time.time()
-        if now - self.last_action_time >= self.cooldown:
-            if self.workspace_state:
-                self.workspace_state.set("user_present", False)
-            self.goodnight()
-            self.last_action_time = time.time()
-        elif self.logger:
-            self.logger.info("USER_LEFT event ignored (cooldown active).")
+        if now - self._last_action_time < self._cooldown_s:
+            return
+            
+        self.logger.action(f"Event Triggered: USER_LEFT (Source: {data.get('source', 'unknown') if data else 'unknown'})")
+        self.workspace_state.set("user_present", False)
+        self.goodnight()
+        self._last_action_time = time.time()
+
+    def welcome_home(self):
+        """Sequential environment setup."""
+        self.logger.action("INITIATING: Welcome Home Sequence")
+        self.wake_system()
+        self.launch_or_maximize_vscode()
+        self.play_spotify()
 
     def wake_system(self):
-        """
-        STAGE 1: Wake & Unlock Routine
-        Jiggles mouse, waits for Victus display, and drops lock screen.
-        """
-        if self.system != "Windows":
-            return False
-
+        """Wake monitor and drop lock screen."""
+        if self.system != "Windows": return
         try:
-            # Jiggle mouse to wake hardware
             ctypes.windll.user32.mouse_event(MOUSEEVENTF_MOVE, 1, 1, 0, 0)
-            
-            # 1.5s hardware delay for Victus display to initialize
             time.sleep(1.5)
-            
-            # Press 'Enter' and release to drop lock screen
             ctypes.windll.user32.keybd_event(VK_RETURN, 0, 0, 0)
             time.sleep(0.05)
             ctypes.windll.user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
-            
-            if self.logger:
-                self.logger.action("System Wake & Unlock triggered")
-            return True
         except Exception as e:
-            if self.logger:
-                self.logger.error(f"Wake failed: {e}")
-            return False
+            self.logger.error(f"Wake failed: {e}")
 
-    def launch_or_maximize(self):
-        """
-        STAGE 2: Workspace Management
-        Maximizes VS Code if open, otherwise launches it.
-        """
-        if self.system != "Windows" or not win32gui:
-            if shutil.which('code'):
-                subprocess.Popen(['code'])
-            else:
-                if self.logger:
-                    self.logger.error("VS Code ('code') not found in PATH.")
-            return
-
+    def launch_or_maximize_vscode(self):
+        """Maximize VS Code if open, otherwise launch it."""
+        if self.system != "Windows": return
+        
         def find_vscode(hwnd, results):
-            if win32gui.IsWindowVisible(hwnd):
+            if win32gui and win32gui.IsWindowVisible(hwnd):
                 if "Visual Studio Code" in win32gui.GetWindowText(hwnd):
                     results.append(hwnd)
 
         vscode_hwnds = []
-        win32gui.EnumWindows(find_vscode, vscode_hwnds)
+        if win32gui:
+            win32gui.EnumWindows(find_vscode, vscode_hwnds)
 
         if vscode_hwnds:
-            if self.logger:
-                self.logger.info("Maximizing VS Code...")
             for hwnd in vscode_hwnds:
                 try:
                     win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
                     win32gui.SetForegroundWindow(hwnd)
-                except Exception:
-                    # Catching focus restrictions gracefully
-                    pass
+                except Exception: pass
         else:
-            if self.logger:
-                self.logger.info("Launching VS Code...")
-            if shutil.which('code'):
-                subprocess.Popen(['code'])
-            else:
-                if self.logger:
-                    self.logger.error("VS Code ('code') not found in PATH.")
+            self.logger.info("Launching VS Code...")
+            try:
+                # Use shell=True to handle PATH resolution for 'code' command on Windows
+                subprocess.Popen(['code'], shell=True)
+            except Exception as e:
+                self.logger.error(f"Failed to launch VS Code: {e}")
 
-    def play_startup_theme(self):
-        """
-        STAGE 3: Music Sequence (Force-Play)
-        Launches Spotify URL. Auto-play is handled by the OS/App handshake.
-        """
+    def play_spotify(self):
+        """Launch Spotify track."""
         try:
-            if self.logger:
-                self.logger.info("Firing Spotify startup theme...")
-            
-            # Start Spotify track - Most versions auto-play on URL open
             os.startfile(self.song_url)
-            
-            if self.logger:
-                self.logger.action("Music sequence initiated via URL.")
         except Exception as e:
-            if self.logger:
-                self.logger.error(f"Music sequence failed: {e}")
-
-    def welcome_home(self):
-        """
-        Master Function: Sequential environment setup.
-        Order: Wake -> Workspace (VS Code) -> Spotify
-        """
-        if self.logger:
-            self.logger.action("WELCOME HOME SEQUENCE STARTED")
-        
-        self.wake_system()         # 1. Wake
-        self.launch_or_maximize()  # 2. Workspace
-        self.play_startup_theme()  # 3. Spotify
+            self.logger.error(f"Spotify failed: {e}")
 
     def goodnight(self):
-        """
-        Sleep Command: Pauses music and turns monitor off.
-        """
-        if self.logger:
-            self.logger.action("GOODNIGHT SEQUENCE TRIGGERED")
-        
+        """Pause music and turn monitor off."""
+        self.logger.action("INITIATING: Goodnight Sequence")
         try:
-            # Pause Music
+            # Media Key: Play/Pause
             ctypes.windll.user32.keybd_event(VK_MEDIA_PLAY_PAUSE, 0, 0, 0)
             time.sleep(0.05)
             ctypes.windll.user32.keybd_event(VK_MEDIA_PLAY_PAUSE, 0, KEYEVENTF_KEYUP, 0)
             
-            # Turn off Monitor
+            # Monitor Power Off
             ctypes.windll.user32.SendMessageW(0xFFFF, WM_SYSCOMMAND, SC_MONITORPOWER, 2)
-            
-            if self.logger:
-                self.logger.info("Monitor turned off, Music paused.")
         except Exception as e:
-            if self.logger:
-                self.logger.error(f"Goodnight sequence failed: {e}")
+            self.logger.error(f"Goodnight failed: {e}")

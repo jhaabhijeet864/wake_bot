@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white" />
   <img src="https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" />
   <img src="https://img.shields.io/badge/status-Active%20Development-00C853?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/version-2.0.0-blueviolet?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-2.1.0-blueviolet?style=for-the-badge" />
 </p>
 
 ---
@@ -19,7 +19,7 @@
 
 WakeBot (codename: **Big Bot**) is a Python-powered desktop automation daemon that reacts to **audio cues** (claps, voice commands) and **visual context** (webcam presence, screen content, AI vision models) to orchestrate your workspace — waking your PC, launching VS Code, playing Spotify, detecting errors on screen, and more.
 
-It is designed with a **Principal Architect philosophy**: every module runs on its own daemon thread, communicates via thread-safe events, and never blocks the main execution loop.
+It is designed with a **Principal Architect philosophy**: version 2.1.0 introduces a **fully decoupled, event-driven architecture** using a central **EventBus** and a unified **AudioOrchestrator**. Every module runs on its own daemon thread and never blocks the main execution loop.
 
 ---
 
@@ -27,13 +27,13 @@ It is designed with a **Principal Architect philosophy**: every module runs on i
 
 | Feature | Trigger | Module |
 |---|---|---|
-| 👏 **Single Clap** → Wake PC + VS Code + Spotify | Audio | `audio_cmd.py` |
-| 👏👏 **Double Clap** → Goodnight (Pause Music + Screen Off) | Audio | `audio_cmd.py` |
-| 🗣️ **Voice Command** → "Wake up daddy's home" | Audio (Vosk) | `audio_cmd.py` |
-| 👤 **Walk-up Detection** → Auto Welcome Home | Vision (Phase 1) | `presence.py` |
-| 🚶 **Walk-away Detection** → Auto Goodnight (2 min) | Vision (Phase 1) | `presence.py` |
-| 🖥️ **Screen OCR** → Detect errors, media, active apps | Vision (Phase 2) | `screen.py` |
-| 🧠 **AI Vision Analysis** → "What am I doing?" via VLM | Vision (Phase 3) | `multimodal.py` |
+| 👏 **Single Clap** → Wake PC + VS Code + Spotify | Audio | `AudioOrchestrator` |
+| 👏👏 **Double Clap** → Goodnight (Pause Music + Screen Off) | Audio | `AudioOrchestrator` |
+| 🗣️ **Voice Command** → "Wake up" | Audio (Vosk) | `AudioOrchestrator` |
+| 👤 **Walk-up Detection** → Auto Welcome Home | Vision (Phase 1) | `PresenceMonitor` |
+| 🚶 **Walk-away Detection** → Auto Goodnight (2 min) | Vision (Phase 1) | `PresenceMonitor` |
+| 🖥️ **Screen OCR** → Detect errors, media, active apps | Vision (Phase 2) | `ScreenMonitor` |
+| 🧠 **AI Vision Analysis** → "What am I doing?" via VLM | Vision (Phase 3) | `MultiModalEngine` |
 
 ---
 
