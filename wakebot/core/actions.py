@@ -17,6 +17,7 @@ from typing import List, Optional
 from wakebot.core.logger import WakeBotLogger
 from wakebot.core.event_bus import EventBus
 from wakebot.core.workspace_state import WorkspaceState
+from wakebot.triggers.tts.tts_engine import TTSEngine
 
 # Windows Constants
 MOUSEEVENTF_MOVE = 0x0001
@@ -42,6 +43,7 @@ class WakeBotActions:
         self.system = platform.system()
         self.workspace_state = WorkspaceState()
         self.event_bus = EventBus()
+        self.tts = TTSEngine()
         
         # Cooldown management
         self._last_action_time = 0.0
@@ -78,9 +80,11 @@ class WakeBotActions:
     def welcome_home(self):
         """Sequential environment setup."""
         self.logger.action("INITIATING: Welcome Home Sequence")
+        self.tts.say("Welcome home! Setting up your workspace.")
         self.wake_system()
         self.launch_or_maximize_vscode()
         self.play_spotify()
+
 
     def wake_system(self):
         """Wake monitor and drop lock screen."""
@@ -131,6 +135,7 @@ class WakeBotActions:
     def goodnight(self):
         """Pause music and turn monitor off."""
         self.logger.action("INITIATING: Goodnight Sequence")
+        self.tts.say("Standby mode activated. Goodnight!")
         try:
             # Media Key: Play/Pause
             ctypes.windll.user32.keybd_event(VK_MEDIA_PLAY_PAUSE, 0, 0, 0)

@@ -17,6 +17,7 @@ import threading
 from typing import Optional, List
 
 from wakebot.core.logger import WakeBotLogger
+from wakebot.core.event_bus import EventBus
 
 try:
     import mss
@@ -77,6 +78,7 @@ class ScreenMonitor(threading.Thread):
         self._pause_event.set()
 
         self._logger = logger or WakeBotLogger()
+        self._event_bus = EventBus()
         self._reader = None  # Lazy-init EasyOCR
         self._cuda_available = False  # Set during run()
         self._error_res = [
@@ -227,6 +229,7 @@ class ScreenMonitor(threading.Thread):
             self._logger.info(f"Media detected: {active_window}")
         if is_error:
             self._logger.info("Error pattern detected in screen text.")
+            self._event_bus.emit("ERROR_DETECTED", {"error_context": error_ctx, "active_window": active_window})
 
     # ------------------------------------------------------------------
     # Helpers
