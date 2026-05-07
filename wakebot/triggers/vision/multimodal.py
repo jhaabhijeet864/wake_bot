@@ -259,10 +259,11 @@ class MultiModalEngine(threading.Thread):
         """Route to the configured VLM backend."""
         effective_provider = self._vlm_provider
 
-        # Privacy mode: force local-only processing
-        if self._privacy_mode and effective_provider == "gemini":
+        # Privacy mode or Manual Toggle: force local-only processing
+        is_local_only = self._workspace_state.get("local_only", False)
+        if (self._privacy_mode or is_local_only) and effective_provider == "gemini":
             self._logger.info(
-                "Privacy mode active: blocking Gemini, falling back to Ollama."
+                f"Local-only mode active ({'Privacy' if self._privacy_mode else 'Manual'}): blocking Gemini, falling back to Ollama."
             )
             effective_provider = "ollama"
 
