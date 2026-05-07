@@ -28,11 +28,19 @@ class WorkspaceState:
             "is_fullscreen_media": False,
             "is_error_detected": False,
             "error_context": "",
+            "error_type": "",
             "screen_reading_active": True,
 
             # Phase 3: Multi-Modal
             "vlm_last_analysis": "",
             "vlm_last_timestamp": 0.0,
+
+            # Phase 4: Self-Healing
+            "healer_active": False,
+            "healer_last_diagnosis": "",
+            "healer_last_file": "",
+            "healer_last_timestamp": 0.0,
+            "healer_patches_applied": 0,
 
             # Hardware Telemetry
             "gpu_name": "",

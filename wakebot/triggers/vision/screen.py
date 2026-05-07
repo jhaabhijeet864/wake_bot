@@ -52,6 +52,20 @@ ERROR_PATTERNS: List[str] = [
     r"npm ERR!|ModuleNotFoundError",
 ]
 
+# Error classification map — keyed by regex fragment → human label
+_ERROR_CLASSIFICATIONS = {
+    r"Traceback": "Python Traceback",
+    r"SyntaxError": "Python SyntaxError",
+    r"TypeError": "Python TypeError",
+    r"ValueError": "Python ValueError",
+    r"KeyError": "Python KeyError",
+    r"ImportError|ModuleNotFoundError": "Python ImportError",
+    r"npm ERR!": "npm Error",
+    r"ENOENT|EACCES|EPERM": "Filesystem Error",
+    r"\.tsx?\(\d+": "TypeScript Compile Error",
+    r"error TS\d+": "TypeScript Compile Error",
+}
+
 
 class ScreenMonitor(threading.Thread):
     """
@@ -207,13 +221,16 @@ class ScreenMonitor(threading.Thread):
         # Error pattern matching
         is_error = False
         error_ctx = ""
+        error_type = ""
         for pattern in self._error_res:
             match = pattern.search(extracted)
             if match:
                 is_error = True
-                start = max(0, match.start() - 50)
-                end = min(len(extracted), match.end() + 50)
+                # Expanded context window (±500 chars) for self-healer
+                start = max(0, match.start() - 500)
+                end = min(len(extracted), match.end() + 500)
                 error_ctx = extracted[start:end]
+                error_type = self._classify_error(match.group())
                 break
 
         # Atomic batch update (thread-safe via WorkspaceState._lock)
@@ -223,13 +240,19 @@ class ScreenMonitor(threading.Thread):
             "is_fullscreen_media": is_media,
             "is_error_detected": is_error,
             "error_context": error_ctx,
+            "error_type": error_type,
         })
 
         if is_media:
             self._logger.info(f"Media detected: {active_window}")
         if is_error:
-            self._logger.info("Error pattern detected in screen text.")
-            self._event_bus.emit("ERROR_DETECTED", {"error_context": error_ctx, "active_window": active_window})
+            self._logger.info(f"Error pattern detected: [{error_type}] in '{active_window}'")
+            self._event_bus.emit("ERROR_DETECTED", {
+                "error_context": error_ctx,
+                "error_type": error_type,
+                "full_text": extracted[:2000],
+                "active_window": active_window,
+            })
 
     # ------------------------------------------------------------------
     # Helpers
@@ -244,6 +267,14 @@ class ScreenMonitor(threading.Thread):
             except Exception:
                 pass
         return ""
+
+    @staticmethod
+    def _classify_error(matched_text: str) -> str:
+        """Classify an error match into a human-readable category."""
+        for pattern, label in _ERROR_CLASSIFICATIONS.items():
+            if re.search(pattern, matched_text, re.IGNORECASE):
+                return label
+        return "Unknown Error"
 
     # ------------------------------------------------------------------
     # Public API — Killswitch

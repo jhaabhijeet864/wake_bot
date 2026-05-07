@@ -29,6 +29,7 @@ class WakeBotDashboard(ctk.CTk):
         screen_monitor=None,
         vlm_engine=None,
         audio_orchestrator=None,
+        self_healer=None,
         logger=None,
     ):
         super().__init__()
@@ -39,6 +40,7 @@ class WakeBotDashboard(ctk.CTk):
         self.screen_monitor = screen_monitor
         self.vlm_engine = vlm_engine
         self.audio = audio_orchestrator
+        self.self_healer = self_healer
         self.logger = logger or WakeBotLogger()
         self.hw_monitor = HardwareMonitor()
         self.event_bus = EventBus()
@@ -105,8 +107,12 @@ class WakeBotDashboard(ctk.CTk):
         self.vlm_switch.grid(row=6, column=0, padx=20, pady=6, sticky="w")
         self.vlm_switch.select()
 
+        self.healer_switch = ctk.CTkSwitch(self.sidebar_frame, text="🩺 Self-Healer", command=self._toggle_healer)
+        self.healer_switch.grid(row=7, column=0, padx=20, pady=6, sticky="w")
+        self.healer_switch.select()
+
         self.local_only_switch = ctk.CTkSwitch(self.sidebar_frame, text="🔒 Local-Only AI", command=self._toggle_local_only)
-        self.local_only_switch.grid(row=7, column=0, padx=20, pady=6, sticky="w")
+        self.local_only_switch.grid(row=8, column=0, padx=20, pady=6, sticky="w")
         if self.workspace_state.get("local_only", False):
             self.local_only_switch.select()
 
@@ -115,10 +121,10 @@ class WakeBotDashboard(ctk.CTk):
             self.sidebar_frame, text="💻 SYSTEM TELEMETRY",
             font=ctk.CTkFont(size=10, weight="bold"), text_color="#888888"
         )
-        telemetry_header.grid(row=8, column=0, padx=20, pady=(15, 5), sticky="w")
+        telemetry_header.grid(row=9, column=0, padx=20, pady=(15, 5), sticky="w")
 
         self.telemetry_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="#111111", corner_radius=8)
-        self.telemetry_frame.grid(row=9, column=0, padx=15, pady=5, sticky="ew")
+        self.telemetry_frame.grid(row=10, column=0, padx=15, pady=5, sticky="ew")
         self.telemetry_frame.grid_columnconfigure(0, weight=1)
 
         self.gpu_name_lbl = ctk.CTkLabel(
@@ -190,7 +196,8 @@ class WakeBotDashboard(ctk.CTk):
         """Subscribe to central EventBus events to log them in the UI."""
         self.event_bus.subscribe("USER_ARRIVED", lambda d=None: self._log_event("USER_ARRIVED", f"Source: {d.get('source', 'unknown') if d else 'unknown'}"))
         self.event_bus.subscribe("USER_LEFT", lambda d=None: self._log_event("USER_LEFT", f"Source: {d.get('source', 'unknown') if d else 'unknown'}"))
-        self.event_bus.subscribe("ERROR_DETECTED", lambda d=None: self._log_event("ERROR_DETECTED", f"Context: '{d.get('error_context', '')[:80]}...' in {d.get('active_window', 'unknown')}"))
+        self.event_bus.subscribe("ERROR_DETECTED", lambda d=None: self._log_event("ERROR_DETECTED", f"[{d.get('error_type', '?')}] '{d.get('error_context', '')[:80]}...' in {d.get('active_window', 'unknown')}"))
+        self.event_bus.subscribe("ERROR_HEALED", lambda d=None: self._log_event("🩺 HEALED", f"Fixed: {d.get('diagnosis', '')[:80]} in {d.get('file', 'unknown')}"))
 
     def _log_event(self, event_name: str, details: str):
         """Append event logs securely and thread-safely via queue."""
@@ -217,6 +224,15 @@ class WakeBotDashboard(ctk.CTk):
         if self.vlm_engine:
             if self.vlm_switch.get(): self.vlm_engine.resume()
             else: self.vlm_engine.pause()
+
+    def _toggle_healer(self):
+        if self.self_healer:
+            if self.healer_switch.get():
+                self.self_healer.enable()
+                self._log_event("CONFIG", "Self-Healer ENABLED")
+            else:
+                self.self_healer.disable()
+                self._log_event("CONFIG", "Self-Healer DISABLED")
 
     def _toggle_local_only(self):
         self.workspace_state.set("local_only", bool(self.local_only_switch.get()))

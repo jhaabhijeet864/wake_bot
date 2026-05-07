@@ -11,6 +11,7 @@ from wakebot.core import load_config, WakeBotLogger, WorkspaceState
 from wakebot.core.event_bus import EventBus
 from wakebot.core.audio_orchestrator import AudioOrchestrator
 from wakebot.core.actions import WakeBotActions
+from wakebot.core.self_healer import SelfHealer
 from wakebot.triggers.vision.presence import PresenceMonitor
 from wakebot.triggers.vision.screen import ScreenMonitor
 from wakebot.triggers.vision.multimodal import MultiModalEngine
@@ -29,11 +30,25 @@ def run_vision():
     # Dispatcher (Automatically subscribes to events)
     actions = WakeBotActions(logger=logger)
 
+    # Self-Healer (Automatically subscribes to ERROR_DETECTED)
+    healer = None
+    if getattr(config, 'healer_enabled', True):
+        healer = SelfHealer(
+            workspace_state=workspace_state,
+            vlm_provider=config.vlm_provider,
+            logger=logger,
+            cooldown_s=getattr(config, 'healer_cooldown_s', 15.0),
+            confirm_hotkey=getattr(config, 'healer_confirm_hotkey', 'F9'),
+            auto_backup=getattr(config, 'healer_auto_backup', True),
+            llm_model=getattr(config, 'healer_llm_model', 'llama3'),
+        )
+
     print(f"""
 {Fore.CYAN}{Style.BRIGHT}    W A K E B O T  |  U N I F I E D  E N G I N E  (v2.1.0){Style.RESET_ALL}
 {Fore.WHITE}    -------------------------------------------------------
     [ STATUS ] EventBus Active
     [ ENGINE ] Decoupled Orchestration
+    [ HEALER ] {'ENABLED' if healer else 'DISABLED'}
     [ CTRL+C ] Graceful Shutdown
     -------------------------------------------------------
     {Style.RESET_ALL}""")
@@ -84,6 +99,7 @@ def run_vision():
             screen_monitor=screen,
             vlm_engine=multimodal,
             audio_orchestrator=audio,
+            self_healer=healer,
             logger=logger
         )
         dashboard.start_dashboard()
@@ -96,3 +112,4 @@ def run_vision():
         screen.stop()
         multimodal.stop()
         logger.info("Shutdown complete.")
+

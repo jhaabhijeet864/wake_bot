@@ -44,6 +44,13 @@ class WakeBotConfig:
     sensitive_apps: tuple = ("keepass", "1password", "bitwarden", "lastpass")
     local_only: bool = False
     
+    # Self-Healer Settings
+    healer_enabled: bool = True
+    healer_cooldown_s: float = 15.0
+    healer_confirm_hotkey: str = "F9"
+    healer_auto_backup: bool = True
+    healer_llm_model: str = "llama3"
+    
     # Action Settings
     youtube_url: str = "https://www.youtube.com"
     wake_key: str = "shift"
