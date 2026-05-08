@@ -6,6 +6,17 @@ class EventBus:
     """
     Thread-safe Pub/Sub coordinator for decoupling triggers and actions.
     Ensures that CV inference/audio threads do not block the main execution thread.
+    
+    Central coordinator for system-wide events.
+    Allows modules to emit signals without knowing who is listening.
+
+    Known event types:
+      - USER_ARRIVED  — user detected (vision/audio trigger)
+      - USER_LEFT     — user departed (vision/audio trigger)
+      - ERROR_DETECTED — on-screen error pattern found (ScreenMonitor)
+      - ERROR_HEALED  — self-healer successfully patched a file (SelfHealer)
+      - GAZE_STATE_CHANGED — attention state transition (GazeTracker)
+      - GESTURE_DETECTED — recognized hand gesture action (GestureController)
     """
     
     def __init__(self):

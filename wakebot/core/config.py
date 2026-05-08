@@ -39,6 +39,17 @@ class WakeBotConfig:
     vlm_provider: str = "ollama"
     vlm_interval: float = 60.0
     
+    # Gaze Tracking Settings
+    gaze_enabled: bool = False
+    gaze_smoothing_window: int = 5
+    gaze_screen_yaw_threshold: float = 15.0
+    gaze_bot_yaw_threshold: float = 45.0
+    
+    # Gesture Control Settings
+    gesture_enabled: bool = False
+    gesture_cooldown_s: float = 1.5
+    gesture_min_confidence: float = 0.7
+    
     # Privacy Settings
     privacy_mode: bool = False
     sensitive_apps: tuple = ("keepass", "1password", "bitwarden", "lastpass")

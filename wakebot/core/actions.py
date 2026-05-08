@@ -49,6 +49,8 @@ class WakeBotActions:
         if self.event_bus:
             self.event_bus.subscribe("USER_ARRIVED", self._on_user_arrived)
             self.event_bus.subscribe("USER_LEFT", self._on_user_left)
+            self.event_bus.subscribe("GAZE_STATE_CHANGED", self._on_gaze_changed)
+            self.event_bus.subscribe("GESTURE_DETECTED", self._on_gesture)
 
     def _on_user_arrived(self, data=None):
         now = time.time()
@@ -69,6 +71,32 @@ class WakeBotActions:
             self.last_action_time = time.time()
         elif self.logger:
             self.logger.info("USER_LEFT event ignored (cooldown active).")
+
+    def _on_gaze_changed(self, data=None):
+        """React to gaze/attention state transitions."""
+        if not data:
+            return
+        state = data.get("state", "UNKNOWN")
+        prev = data.get("prev_state", "UNKNOWN")
+        if self.logger:
+            yaw = data.get("yaw", 0.0)
+            self.logger.info(
+                f"Attention: {prev} -> {state} (yaw={yaw:.1f}\u00b0)"
+            )
+        # When user looks at the bot, log readiness for conversational mode
+        if state == "LOOKING_AT_BOT" and self.workspace_state:
+            self.workspace_state.set("attention_state", state)
+        elif self.workspace_state:
+            self.workspace_state.set("attention_state", state)
+
+    def _on_gesture(self, data=None):
+        """React to recognized hand gestures."""
+        if not data:
+            return
+        gesture = data.get("gesture", "UNKNOWN")
+        action = data.get("action", "UNKNOWN")
+        if self.logger:
+            self.logger.action(f"Gesture: {gesture} -> {action}")
 
     def wake_system(self):
         """

@@ -49,6 +49,8 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
         clap_detector=None,
         voice_detector=None,
         audio_paused=None,
+        gaze_tracker=None,
+        gesture_controller=None,
         logger=None,
     ):
         super().__init__()
@@ -66,6 +68,10 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
         self.clap_detector = clap_detector
         self.voice_detector = voice_detector
         self.audio_paused = audio_paused  # threading.Event — set = paused
+
+        # Gaze & Gesture subsystem references
+        self.gaze_tracker = gaze_tracker
+        self.gesture_controller = gesture_controller
 
         self.logger = logger or WakeBotLogger()
 
@@ -147,17 +153,33 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
         self.vlm_switch.grid(row=6, column=0, padx=20, pady=6, sticky="w")
         self.vlm_switch.select()
 
+        self.gaze_switch = ctk.CTkSwitch(
+            self.sidebar_frame, text="\U0001F441 Gaze Tracking",
+            command=self._toggle_gaze
+        )
+        self.gaze_switch.grid(row=7, column=0, padx=20, pady=6, sticky="w")
+        if self.gaze_tracker:
+            self.gaze_switch.select()
+
+        self.gesture_switch = ctk.CTkSwitch(
+            self.sidebar_frame, text="\u270B Gesture Control",
+            command=self._toggle_gesture
+        )
+        self.gesture_switch.grid(row=8, column=0, padx=20, pady=6, sticky="w")
+        if self.gesture_controller:
+            self.gesture_switch.select()
+
         # ---- System Metrics ----
         metrics_header = ctk.CTkLabel(
             self.sidebar_frame, text="SYSTEM METRICS",
             font=ctk.CTkFont(size=10, weight="bold"), text_color="#888888"
         )
-        metrics_header.grid(row=7, column=0, padx=20, pady=(20, 5), sticky="w")
+        metrics_header.grid(row=9, column=0, padx=20, pady=(20, 5), sticky="w")
 
         self.metrics_container = ctk.CTkFrame(
             self.sidebar_frame, fg_color="#1a1a1a", corner_radius=8
         )
-        self.metrics_container.grid(row=8, column=0, padx=15, pady=5, sticky="ew")
+        self.metrics_container.grid(row=10, column=0, padx=15, pady=5, sticky="ew")
 
         self.cpu_lbl = ctk.CTkLabel(
             self.metrics_container, text="CPU      0%",
@@ -176,12 +198,12 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
             self.sidebar_frame, text="GPU TELEMETRY",
             font=ctk.CTkFont(size=10, weight="bold"), text_color="#888888"
         )
-        gpu_header.grid(row=9, column=0, padx=20, pady=(15, 5), sticky="w")
+        gpu_header.grid(row=11, column=0, padx=20, pady=(15, 5), sticky="w")
 
         self.gpu_container = ctk.CTkFrame(
             self.sidebar_frame, fg_color="#1a1a1a", corner_radius=8
         )
-        self.gpu_container.grid(row=10, column=0, padx=15, pady=5, sticky="ew")
+        self.gpu_container.grid(row=12, column=0, padx=15, pady=5, sticky="ew")
 
         self.gpu_name_lbl = ctk.CTkLabel(
             self.gpu_container, text="GPU  N/A",
@@ -239,7 +261,7 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
         # Live Metrics Panel
         self.metrics_frame = ctk.CTkFrame(self.main_frame, height=120)
         self.metrics_frame.grid(row=1, column=0, pady=(20, 0), sticky="ew")
-        self.metrics_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        self.metrics_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
 
         self.presence_lbl = ctk.CTkLabel(
             self.metrics_frame, text="Presence: AWAY",
@@ -258,6 +280,13 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
             font=ctk.CTkFont(size=13), text_color="#FFD740"
         )
         self.vlm_status_lbl.grid(row=0, column=2, padx=20, pady=25)
+
+        # Attention State Indicator
+        self.attention_lbl = ctk.CTkLabel(
+            self.metrics_frame, text="Attention: UNKNOWN",
+            font=ctk.CTkFont(size=13, weight="bold"), text_color="#888888"
+        )
+        self.attention_lbl.grid(row=0, column=3, padx=20, pady=25)
 
     def _build_status_bar(self):
         """Create the bottom status bar."""
@@ -319,6 +348,28 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
             text=f"VLM Engine {'Resumed' if active else 'Paused'}"
         )
 
+    def _toggle_gaze(self):
+        active = self.gaze_switch.get()
+        if self.gaze_tracker:
+            if active:
+                self.gaze_tracker.resume()
+            else:
+                self.gaze_tracker.pause()
+        self.status_label.configure(
+            text=f"Gaze Tracker {'Resumed' if active else 'Paused'}"
+        )
+
+    def _toggle_gesture(self):
+        active = self.gesture_switch.get()
+        if self.gesture_controller:
+            if active:
+                self.gesture_controller.resume()
+            else:
+                self.gesture_controller.pause()
+        self.status_label.configure(
+            text=f"Gesture Controller {'Resumed' if active else 'Paused'}"
+        )
+
     # ------------------------------------------------------------------
     # Update Loops
     # ------------------------------------------------------------------
@@ -373,6 +424,19 @@ class WakeBotDashboard(ctk.CTk if ctk else tk.Tk):
         if len(window) > 35:
             window = window[:32] + "..."
         self.window_lbl.configure(text=f"Focused: {window}")
+
+        # Attention State
+        attn = state.get("attention_state", "UNKNOWN")
+        attn_colors = {
+            "LOOKING_AT_SCREEN": "#00C853",
+            "LOOKING_AT_BOT": "#4FC3F7",
+            "DISTRACTED": "#FFD740",
+            "UNKNOWN": "#888888",
+        }
+        self.attention_lbl.configure(
+            text=f"Attention: {attn}",
+            text_color=attn_colors.get(attn, "#888888")
+        )
 
         # System Metrics
         if psutil:

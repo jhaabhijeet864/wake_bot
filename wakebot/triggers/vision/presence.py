@@ -7,6 +7,10 @@ Thread-safety contract:
   - Communicates ONLY via threading.Event (wake_event / sleep_event).
   - Never calls WakeBotActions directly.
   - Camera is released on stop() or on unrecoverable failure.
+
+Integration:
+  - GazeTracker and GestureController consume frames via get_latest_frame().
+  - Both are opt-in (config: gaze_enabled, gesture_enabled).
 """
 
 # CRITICAL: Must be set before mediapipe is imported anywhere.
@@ -43,6 +47,9 @@ class PresenceMonitor(threading.Thread):
     """
     Daemon thread that monitors the webcam for user presence.
     GPU Accelerated via PyTorch CUDA for frame processing and motion detection.
+    
+    Child trackers (GazeTracker, GestureController) share frames via
+    get_latest_frame() and are lifecycle-managed by the caller.
     """
 
     def __init__(
